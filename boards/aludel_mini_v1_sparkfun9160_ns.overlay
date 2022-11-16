@@ -16,7 +16,7 @@
 		reg = <0x76>;
 	};
 
-	apds9960@39 {
+	apds9960: apds9960@39 {
 		compatible = "avago,apds9960";
 		reg = <0x39>;
 		label = "APDS9960";

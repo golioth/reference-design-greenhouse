@@ -5,7 +5,7 @@
  */
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(golioth_hello, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(golioth_greenhouse, LOG_LEVEL_DBG);
 
 #include <net/golioth/fw.h>
 #include <net/golioth/settings.h>
@@ -15,6 +15,7 @@ LOG_MODULE_REGISTER(golioth_hello, LOG_LEVEL_DBG);
 #include "app_dfu.h"
 
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/sensor.h>
 
 static struct golioth_client *client = GOLIOTH_SYSTEM_CLIENT_GET();
 
@@ -30,6 +31,9 @@ static const struct gpio_dt_spec user_btn = GPIO_DT_SPEC_GET(
 static struct gpio_callback button_cb_data;
 const struct gpio_dt_spec relay0 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_0), gpios);
 const struct gpio_dt_spec relay1 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_1), gpios);
+const struct device *light_sensor = DEVICE_DT_GET(DT_NODELABEL(apds9960));
+
+static struct k_work sensor_work;
 
 enum golioth_settings_status on_setting(
 		const char *key,
@@ -77,6 +81,21 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb,
 {
 	LOG_DBG("Button pressed at %d", k_cycle_get_32());
 	k_wakeup(_system_thread);
+}
+
+static void sensor_work_handler(struct k_work *work) {
+	struct sensor_value intensity, red, green, blue;
+	int err;
+	err = sensor_sample_fetch(light_sensor);
+	if (err) {
+		LOG_ERR("Light sensor fetch failed: %d", err);
+		return;
+	}
+	sensor_channel_get(light_sensor, SENSOR_CHAN_LIGHT, &intensity);
+	sensor_channel_get(light_sensor, SENSOR_CHAN_RED, &red);
+	sensor_channel_get(light_sensor, SENSOR_CHAN_GREEN, &green);
+	sensor_channel_get(light_sensor, SENSOR_CHAN_BLUE, &blue);
+	LOG_INF("Light: %d; r=%d, g=%d, b=%d", intensity.val1, red.val1, green.val1, blue.val1);
 }
 
 void main(void)
@@ -139,6 +158,8 @@ void main(void)
 
 	k_sleep(K_SECONDS(1));
 
+	k_work_init(&sensor_work, sensor_work_handler);
+
 	while (true) {
 		LOG_INF("Sending hello! %d", counter);
 
@@ -147,6 +168,8 @@ void main(void)
 			LOG_WRN("Failed to send hello!");
 		}
 		++counter;
+
+		k_work_submit(&sensor_work);
 
 		gpio_pin_toggle_dt(&relay0);
 		gpio_pin_toggle_dt(&relay1);

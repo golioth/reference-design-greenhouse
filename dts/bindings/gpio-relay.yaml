@@ -1,0 +1,14 @@
+# Copyright (c) 2022, Golioth
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Simple binding for GPIO control of a Relay CLICK board
+
+compatible: "gpio-relay"
+
+child-binding:
+    description: GPIO Relay child node
+    properties:
+       gpios:
+          type: phandle-array
+          required: true

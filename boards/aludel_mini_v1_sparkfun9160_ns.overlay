@@ -1,3 +1,15 @@
+/ {
+	relay_pins {
+		compatible = "gpio-relay";
+		relay_0: relay_0 {
+			gpios = <&gpio0 17 (GPIO_ACTIVE_HIGH)>;
+		};
+		relay_1: relay_1 {
+			gpios = <&gpio0 0 (GPIO_ACTIVE_HIGH)>;
+		};
+	};
+};
+
 &i2c1 {
 	bme280@76 {
 		compatible = "bosch,bme280";
@@ -10,4 +22,8 @@
 		label = "APDS9960";
 		int-gpios = <&gpio0 4 (GPIO_ACTIVE_LOW)>;
 	};
+};
+
+&pwm0 {
+	status = "disabled";
 };

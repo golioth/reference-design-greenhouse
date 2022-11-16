@@ -28,6 +28,8 @@ static const struct gpio_dt_spec golioth_led = GPIO_DT_SPEC_GET(
 static const struct gpio_dt_spec user_btn = GPIO_DT_SPEC_GET(
 		DT_ALIAS(sw1), gpios);
 static struct gpio_callback button_cb_data;
+const struct gpio_dt_spec relay0 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_0), gpios);
+const struct gpio_dt_spec relay1 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_1), gpios);
 
 enum golioth_settings_status on_setting(
 		const char *key,
@@ -125,6 +127,18 @@ void main(void)
 	gpio_init_callback(&button_cb_data, button_pressed, BIT(user_btn.pin));
 	gpio_add_callback(user_btn.port, &button_cb_data);
 
+	err = gpio_pin_configure_dt(&relay0, GPIO_OUTPUT_ACTIVE);
+	if (err < 0) {
+		LOG_ERR("Unable to configure relay0");
+	}
+
+	err = gpio_pin_configure_dt(&relay1, GPIO_OUTPUT_ACTIVE);
+	if (err < 0) {
+		LOG_ERR("Unable to configure relay1");
+	}
+
+	k_sleep(K_SECONDS(1));
+
 	while (true) {
 		LOG_INF("Sending hello! %d", counter);
 
@@ -133,6 +147,10 @@ void main(void)
 			LOG_WRN("Failed to send hello!");
 		}
 		++counter;
+
+		gpio_pin_toggle_dt(&relay0);
+		gpio_pin_toggle_dt(&relay1);
+
 		k_sleep(K_SECONDS(_loop_delay_s));
 	}
 }

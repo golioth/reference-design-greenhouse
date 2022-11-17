@@ -32,6 +32,7 @@ static struct gpio_callback button_cb_data;
 const struct gpio_dt_spec relay0 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_0), gpios);
 const struct gpio_dt_spec relay1 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_1), gpios);
 const struct device *light_sensor = DEVICE_DT_GET(DT_NODELABEL(apds9960));
+const struct device *weather_sensor = DEVICE_DT_GET(DT_NODELABEL(bme280));
 
 static struct k_work sensor_work;
 
@@ -84,8 +85,9 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb,
 }
 
 static void sensor_work_handler(struct k_work *work) {
-	struct sensor_value intensity, red, green, blue;
+	struct sensor_value intensity, red, green, blue, temp, press, humidity;
 	int err;
+
 	err = sensor_sample_fetch(light_sensor);
 	if (err) {
 		LOG_ERR("Light sensor fetch failed: %d", err);
@@ -95,7 +97,20 @@ static void sensor_work_handler(struct k_work *work) {
 	sensor_channel_get(light_sensor, SENSOR_CHAN_RED, &red);
 	sensor_channel_get(light_sensor, SENSOR_CHAN_GREEN, &green);
 	sensor_channel_get(light_sensor, SENSOR_CHAN_BLUE, &blue);
-	LOG_INF("Light: %d; r=%d, g=%d, b=%d", intensity.val1, red.val1, green.val1, blue.val1);
+	LOG_INF("Light: %d; r=%d, g=%d, b=%d", intensity.val1, red.val1,
+			green.val1, blue.val1);
+
+	err = sensor_sample_fetch(weather_sensor);
+	if (err) {
+		LOG_ERR("Weather sensor fetch failed: %d", err);
+		return;
+	}
+	sensor_channel_get(weather_sensor, SENSOR_CHAN_AMBIENT_TEMP, &temp);
+	sensor_channel_get(weather_sensor, SENSOR_CHAN_PRESS, &press);
+	sensor_channel_get(weather_sensor, SENSOR_CHAN_HUMIDITY, &humidity);
+	LOG_INF("Weather: temp=%d.%d, press=%d.%d, humidity=%d.%d", temp.val1,
+			temp.val2, press.val1, press.val2, humidity.val1,
+			humidity.val2);
 }
 
 void main(void)

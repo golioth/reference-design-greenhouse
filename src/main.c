@@ -34,6 +34,8 @@ const struct gpio_dt_spec relay1 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_1), gpios
 const struct device *light_sensor = DEVICE_DT_GET(DT_NODELABEL(apds9960));
 const struct device *weather_sensor = DEVICE_DT_GET(DT_NODELABEL(bme280));
 
+#define JSON_FMT	"{\"light\":{\"int\":%d,\"r\":%d,\"g\":%d,\"b\":%d},\"weather\":{\"tem\":%d.%d,\"pre\":%d.%d,\"hum\":%d.%d}}"
+
 static struct k_work sensor_work;
 
 enum golioth_settings_status on_setting(
@@ -84,15 +86,26 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb,
 	k_wakeup(_system_thread);
 }
 
-static void sensor_work_handler(struct k_work *work) {
-	struct sensor_value intensity, red, green, blue, temp, press, humidity;
-	int err;
+static int async_error_handler(struct golioth_req_rsp *rsp) {
+	if (rsp->err) {
+		LOG_ERR("Async task failed: %d", rsp->err);
+		return rsp->err;
+	}
+	return 0;
+}
 
+static void sensor_work_handler(struct k_work *work) {
+	struct sensor_value intensity, red, green, blue, tem, pre, hum;
+	int err;
+	char json_buf[256];
+
+	/* Read all sensors */
 	err = sensor_sample_fetch(light_sensor);
 	if (err) {
 		LOG_ERR("Light sensor fetch failed: %d", err);
 		return;
 	}
+
 	sensor_channel_get(light_sensor, SENSOR_CHAN_LIGHT, &intensity);
 	sensor_channel_get(light_sensor, SENSOR_CHAN_RED, &red);
 	sensor_channel_get(light_sensor, SENSOR_CHAN_GREEN, &green);
@@ -105,12 +118,23 @@ static void sensor_work_handler(struct k_work *work) {
 		LOG_ERR("Weather sensor fetch failed: %d", err);
 		return;
 	}
-	sensor_channel_get(weather_sensor, SENSOR_CHAN_AMBIENT_TEMP, &temp);
-	sensor_channel_get(weather_sensor, SENSOR_CHAN_PRESS, &press);
-	sensor_channel_get(weather_sensor, SENSOR_CHAN_HUMIDITY, &humidity);
-	LOG_INF("Weather: temp=%d.%d, press=%d.%d, humidity=%d.%d", temp.val1,
-			temp.val2, press.val1, press.val2, humidity.val1,
-			humidity.val2);
+
+	sensor_channel_get(weather_sensor, SENSOR_CHAN_AMBIENT_TEMP, &tem);
+	sensor_channel_get(weather_sensor, SENSOR_CHAN_PRESS, &pre);
+	sensor_channel_get(weather_sensor, SENSOR_CHAN_HUMIDITY, &hum);
+	LOG_INF("Weather: tem=%d.%d, pre=%d.%d, hum=%d.%d", tem.val1, tem.val2,
+			pre.val1, pre.val2, hum.val1, hum.val2);
+
+	/* Send sensor data to Golioth */
+	snprintk(json_buf, sizeof(json_buf), JSON_FMT, intensity.val1, red.val1,
+			green.val1, blue.val1, tem.val1, tem.val2, pre.val1,
+			pre.val2, hum.val1, hum.val2);
+
+	err = golioth_stream_push_cb(client, "sensor",
+			GOLIOTH_CONTENT_FORMAT_APP_JSON,
+			json_buf, strlen(json_buf),
+			async_error_handler, NULL);
+	if (err) LOG_ERR("Failed to send sensor data to Golioth: %d", err);
 }
 
 void main(void)

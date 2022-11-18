@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Golioth, Inc.
+ * Copyright (c) 2022 Golioth, Inc.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -35,8 +35,6 @@ const struct device *light_sensor = DEVICE_DT_GET(DT_NODELABEL(apds9960));
 const struct device *weather_sensor = DEVICE_DT_GET(DT_NODELABEL(bme280));
 
 #define JSON_FMT	"{\"light\":{\"int\":%d,\"r\":%d,\"g\":%d,\"b\":%d},\"weather\":{\"tem\":%d.%d,\"pre\":%d.%d,\"hum\":%d.%d}}"
-
-static struct k_work sensor_work;
 
 enum golioth_settings_status on_setting(
 		const char *key,
@@ -136,22 +134,42 @@ static void sensor_work_handler(struct k_work *work) {
 			async_error_handler, NULL);
 	if (err) LOG_ERR("Failed to send sensor data to Golioth: %d", err);
 }
+K_WORK_DEFINE(sensor_work, sensor_work_handler);
 
 void main(void)
 {
 	int counter = 0;
 	int err;
 
-	LOG_DBG("Start Hello sample");
+	LOG_DBG("Start Golioth Greenhouse Controller sample");
 
 	/* Get system thread id so loop delay change event can wake main */
 	_system_thread = k_current_get();
 
+	/* Initialize Golioth logo LED */
 	err = gpio_pin_configure_dt(&golioth_led, GPIO_OUTPUT_INACTIVE);
 	if (err) {
 		LOG_ERR("Unable to configure LED for Golioth Logo");
 	}
 
+	/* Initialize relays */
+	err = gpio_pin_configure_dt(&relay0, GPIO_OUTPUT_INACTIVE);
+	if (err < 0) {
+		LOG_ERR("Unable to configure relay0");
+	}
+
+	err = gpio_pin_configure_dt(&relay1, GPIO_OUTPUT_INACTIVE);
+	if (err < 0) {
+		LOG_ERR("Unable to configure relay1");
+	}
+
+	/* Initialize Golioth:
+	 *   - Initialize DFU components
+	 *   - Run WiFi/DHCP if necessary
+	 *   - Start Golioth client, then block until it connects
+	 *   - Turn on Golioth logo LED once connected
+	 *   - Report current DFU version to Golioth
+	 */
 	app_dfu_init(client);
 
 	if (IS_ENABLED(CONFIG_GOLIOTH_SAMPLES_COMMON)) {
@@ -184,20 +202,6 @@ void main(void)
 
 	gpio_init_callback(&button_cb_data, button_pressed, BIT(user_btn.pin));
 	gpio_add_callback(user_btn.port, &button_cb_data);
-
-	err = gpio_pin_configure_dt(&relay0, GPIO_OUTPUT_ACTIVE);
-	if (err < 0) {
-		LOG_ERR("Unable to configure relay0");
-	}
-
-	err = gpio_pin_configure_dt(&relay1, GPIO_OUTPUT_ACTIVE);
-	if (err < 0) {
-		LOG_ERR("Unable to configure relay1");
-	}
-
-	k_sleep(K_SECONDS(1));
-
-	k_work_init(&sensor_work, sensor_work_handler);
 
 	while (true) {
 		LOG_INF("Sending hello! %d", counter);

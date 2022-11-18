@@ -13,9 +13,9 @@ LOG_MODULE_REGISTER(golioth_greenhouse, LOG_LEVEL_DBG);
 #include <samples/common/net_connect.h>
 #include <zephyr/net/coap.h>
 #include "app_dfu.h"
+#include "app_work.h"
 
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/sensor.h>
 
 static struct golioth_client *client = GOLIOTH_SYSTEM_CLIENT_GET();
 
@@ -31,10 +31,6 @@ static const struct gpio_dt_spec user_btn = GPIO_DT_SPEC_GET(
 static struct gpio_callback button_cb_data;
 const struct gpio_dt_spec relay0 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_0), gpios);
 const struct gpio_dt_spec relay1 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_1), gpios);
-const struct device *light_sensor = DEVICE_DT_GET(DT_NODELABEL(apds9960));
-const struct device *weather_sensor = DEVICE_DT_GET(DT_NODELABEL(bme280));
-
-#define JSON_FMT	"{\"light\":{\"int\":%d,\"r\":%d,\"g\":%d,\"b\":%d},\"weather\":{\"tem\":%d.%d,\"pre\":%d.%d,\"hum\":%d.%d}}"
 
 enum golioth_settings_status on_setting(
 		const char *key,
@@ -84,58 +80,6 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb,
 	k_wakeup(_system_thread);
 }
 
-static int async_error_handler(struct golioth_req_rsp *rsp) {
-	if (rsp->err) {
-		LOG_ERR("Async task failed: %d", rsp->err);
-		return rsp->err;
-	}
-	return 0;
-}
-
-static void sensor_work_handler(struct k_work *work) {
-	struct sensor_value intensity, red, green, blue, tem, pre, hum;
-	int err;
-	char json_buf[256];
-
-	/* Read all sensors */
-	err = sensor_sample_fetch(light_sensor);
-	if (err) {
-		LOG_ERR("Light sensor fetch failed: %d", err);
-		return;
-	}
-
-	sensor_channel_get(light_sensor, SENSOR_CHAN_LIGHT, &intensity);
-	sensor_channel_get(light_sensor, SENSOR_CHAN_RED, &red);
-	sensor_channel_get(light_sensor, SENSOR_CHAN_GREEN, &green);
-	sensor_channel_get(light_sensor, SENSOR_CHAN_BLUE, &blue);
-	LOG_INF("Light: %d; r=%d, g=%d, b=%d", intensity.val1, red.val1,
-			green.val1, blue.val1);
-
-	err = sensor_sample_fetch(weather_sensor);
-	if (err) {
-		LOG_ERR("Weather sensor fetch failed: %d", err);
-		return;
-	}
-
-	sensor_channel_get(weather_sensor, SENSOR_CHAN_AMBIENT_TEMP, &tem);
-	sensor_channel_get(weather_sensor, SENSOR_CHAN_PRESS, &pre);
-	sensor_channel_get(weather_sensor, SENSOR_CHAN_HUMIDITY, &hum);
-	LOG_INF("Weather: tem=%d.%d, pre=%d.%d, hum=%d.%d", tem.val1, tem.val2,
-			pre.val1, pre.val2, hum.val1, hum.val2);
-
-	/* Send sensor data to Golioth */
-	snprintk(json_buf, sizeof(json_buf), JSON_FMT, intensity.val1, red.val1,
-			green.val1, blue.val1, tem.val1, tem.val2, pre.val1,
-			pre.val2, hum.val1, hum.val2);
-
-	err = golioth_stream_push_cb(client, "sensor",
-			GOLIOTH_CONTENT_FORMAT_APP_JSON,
-			json_buf, strlen(json_buf),
-			async_error_handler, NULL);
-	if (err) LOG_ERR("Failed to send sensor data to Golioth: %d", err);
-}
-K_WORK_DEFINE(sensor_work, sensor_work_handler);
-
 void main(void)
 {
 	int counter = 0;
@@ -162,6 +106,9 @@ void main(void)
 	if (err < 0) {
 		LOG_ERR("Unable to configure relay1");
 	}
+
+	/* Initialize app work */
+	app_work_init(client);
 
 	/* Initialize Golioth:
 	 *   - Initialize DFU components
@@ -212,7 +159,7 @@ void main(void)
 		}
 		++counter;
 
-		k_work_submit(&sensor_work);
+		app_work_submit();
 
 		gpio_pin_toggle_dt(&relay0);
 		gpio_pin_toggle_dt(&relay1);

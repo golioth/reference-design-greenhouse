@@ -29,8 +29,6 @@ static const struct gpio_dt_spec golioth_led = GPIO_DT_SPEC_GET(
 static const struct gpio_dt_spec user_btn = GPIO_DT_SPEC_GET(
 		DT_ALIAS(sw1), gpios);
 static struct gpio_callback button_cb_data;
-const struct gpio_dt_spec relay0 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_0), gpios);
-const struct gpio_dt_spec relay1 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_1), gpios);
 
 enum golioth_settings_status on_setting(
 		const char *key,
@@ -96,17 +94,6 @@ void main(void)
 		LOG_ERR("Unable to configure LED for Golioth Logo");
 	}
 
-	/* Initialize relays */
-	err = gpio_pin_configure_dt(&relay0, GPIO_OUTPUT_INACTIVE);
-	if (err < 0) {
-		LOG_ERR("Unable to configure relay0");
-	}
-
-	err = gpio_pin_configure_dt(&relay1, GPIO_OUTPUT_INACTIVE);
-	if (err < 0) {
-		LOG_ERR("Unable to configure relay1");
-	}
-
 	/* Initialize app work */
 	app_work_init(client);
 
@@ -160,9 +147,6 @@ void main(void)
 		++counter;
 
 		app_work_submit();
-
-		gpio_pin_toggle_dt(&relay0);
-		gpio_pin_toggle_dt(&relay1);
 
 		k_sleep(K_SECONDS(_loop_delay_s));
 	}

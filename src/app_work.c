@@ -8,12 +8,15 @@
 LOG_MODULE_REGISTER(app_work, LOG_LEVEL_DBG);
 
 #include <net/golioth/system_client.h>
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/sensor.h>
 
 static struct golioth_client *client;
 
 const struct device *light_sensor = DEVICE_DT_GET(DT_NODELABEL(apds9960));
 const struct device *weather_sensor = DEVICE_DT_GET(DT_NODELABEL(bme280));
+const struct gpio_dt_spec relay0 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_0), gpios);
+const struct gpio_dt_spec relay1 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_1), gpios);
 
 #define JSON_FMT	"{\"light\":{\"int\":%d,\"r\":%d,\"g\":%d,\"b\":%d},\"weather\":{\"tem\":%d.%d,\"pre\":%d.%d,\"hum\":%d.%d}}"
 
@@ -29,6 +32,10 @@ static void sensor_work_handler(struct k_work *work) {
 	struct sensor_value intensity, red, green, blue, tem, pre, hum;
 	int err;
 	char json_buf[256];
+
+	/* Toggle relays as a demo */
+	gpio_pin_toggle_dt(&relay0);
+	gpio_pin_toggle_dt(&relay1);
 
 	/* Read all sensors */
 	err = sensor_sample_fetch(light_sensor);
@@ -70,7 +77,21 @@ static void sensor_work_handler(struct k_work *work) {
 K_WORK_DEFINE(sensor_work, sensor_work_handler);
 
 void app_work_init(struct golioth_client* work_client) {
+	int err;
+
 	client = work_client;
+
+	/* Initialize relays */
+	err = gpio_pin_configure_dt(&relay0, GPIO_OUTPUT_INACTIVE);
+	if (err < 0) {
+		LOG_ERR("Unable to configure relay0");
+	}
+
+	err = gpio_pin_configure_dt(&relay1, GPIO_OUTPUT_INACTIVE);
+	if (err < 0) {
+		LOG_ERR("Unable to configure relay1");
+	}
+
 }
 void app_work_submit(void) {
 	k_work_submit(&sensor_work);

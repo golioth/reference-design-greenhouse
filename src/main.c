@@ -97,25 +97,24 @@ void main(void)
 	/* Initialize app work */
 	app_work_init(client);
 
-	/* Initialize Golioth:
-	 *   - Initialize DFU components
-	 *   - Run WiFi/DHCP if necessary
-	 *   - Start Golioth client, then block until it connects
-	 *   - Turn on Golioth logo LED once connected
-	 *   - Report current DFU version to Golioth
-	 */
+	/* Initialize DFU components */
 	app_dfu_init(client);
 
+	/* Run WiFi/DHCP if necessary */
 	if (IS_ENABLED(CONFIG_GOLIOTH_SAMPLES_COMMON)) {
 		net_connect();
 	}
 
+	/* Start Golioth client */
 	client->on_connect = golioth_on_connect;
 	golioth_system_client_start();
 
+	/* Block until connected to Golioth */
 	k_sem_take(&connected, K_FOREVER);
+	/* Turn on Golioth logo LED once connected */
 	gpio_pin_set_dt(&golioth_led, 1);
 
+	/* Report current DFU version to Golioth */
 	app_dfu_report_state_to_golioth();
 
 	/* Set up user button */

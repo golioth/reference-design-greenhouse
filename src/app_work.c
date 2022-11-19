@@ -7,6 +7,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(app_work, LOG_LEVEL_DBG);
 
+#include <net/golioth/settings.h>
 #include <net/golioth/system_client.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/sensor.h>
@@ -17,6 +18,11 @@ const struct device *light_sensor = DEVICE_DT_GET(DT_NODELABEL(apds9960));
 const struct device *weather_sensor = DEVICE_DT_GET(DT_NODELABEL(bme280));
 const struct gpio_dt_spec relay0 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_0), gpios);
 const struct gpio_dt_spec relay1 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_1), gpios);
+
+static uint8_t relay_0_state = 0;
+static uint8_t relay_1_state = 0;
+static bool relay_0_auto = false;
+static bool relay_1_auto = false;
 
 #define JSON_FMT	"{\"light\":{\"int\":%d,\"r\":%d,\"g\":%d,\"b\":%d},\"weather\":{\"tem\":%d.%d,\"pre\":%d.%d,\"hum\":%d.%d}}"
 
@@ -93,6 +99,49 @@ void app_work_init(struct golioth_client* work_client) {
 	}
 
 }
+
+/**
+ * @brief Process Golioth Settings Service key/value pair unique to this
+ * reference design.
+ *
+ * This function is called from the Settings Service callback
+ * in main.c by default. It should test for key values, process them, and return
+ * an appropriate status code for updating the Golioth servers. If no keys are
+ * matched in this function, you must return GOLIOTH_SETTINGS_KEY_NOT_RECOGNIZED
+ * so that the callback in main.c can continue.
+ *
+ * @param key @param value
+ *
+ * @return golioth_settings_status
+ */
+enum golioth_settings_status app_work_settings(const char *key, const struct
+		golioth_settings_value *value) {
+
+	if (strcmp(key, "RELAY0_AUTO") == 0) {
+		if (value->type != GOLIOTH_SETTINGS_VALUE_TYPE_BOOL) {
+			return GOLIOTH_SETTINGS_VALUE_FORMAT_NOT_VALID;
+		}
+
+		relay_0_auto = (bool)value->b;
+
+		LOG_INF("Set relay_0_auto to: %s", (bool)value->b == true ? "true" : "false");
+		return GOLIOTH_SETTINGS_SUCCESS;
+	}
+
+	if (strcmp(key, "RELAY1_AUTO") == 0) {
+		if (value->type != GOLIOTH_SETTINGS_VALUE_TYPE_BOOL) {
+			return GOLIOTH_SETTINGS_VALUE_FORMAT_NOT_VALID;
+		}
+
+		relay_1_auto = (bool)value->b;
+
+		LOG_INF("Set relay_1_auto to: %s", (bool)value->b == true ? "true" : "false");
+		return GOLIOTH_SETTINGS_SUCCESS;
+	}
+
+	return GOLIOTH_SETTINGS_KEY_NOT_RECOGNIZED;
+}
+
 void app_work_submit(void) {
 	k_work_submit(&sensor_work);
 }

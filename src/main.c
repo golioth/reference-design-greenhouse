@@ -54,6 +54,12 @@ enum golioth_settings_status on_setting(
 		return GOLIOTH_SETTINGS_SUCCESS;
 	}
 
+	enum golioth_settings_status work_return;
+	work_return = app_work_settings(key, value);
+	if (work_return != GOLIOTH_SETTINGS_KEY_NOT_RECOGNIZED) {
+		return work_return;
+	}
+
 	/* If the setting is not recognized, we should return an error */
 	return GOLIOTH_SETTINGS_KEY_NOT_RECOGNIZED;
 }

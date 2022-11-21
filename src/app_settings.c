@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/sys/printk.h>
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(app_settings, LOG_LEVEL_DBG);
 
+
+#include <zephyr/drivers/sensor.h>
+#include <zephyr/sys/printk.h>
 #include <net/golioth/settings.h>
 #include "main.h"
 
@@ -17,6 +19,7 @@ static bool _light_auto = false;
 static bool _temp_auto = false;
 static uint64_t _light_thresh = 0;
 static float _temp_thresh = 0;
+static struct sensor_value _temp_thresh_sensorval = { 0, 0 };
 
 int32_t get_loop_delay_s(void) {
 	return _loop_delay_s;
@@ -114,9 +117,12 @@ enum golioth_settings_status on_setting(
 		else {
 			_temp_thresh = (float)value->f;
 
-			char sbuf[11];
-			snprintk(sbuf, sizeof(sbuf), "%f", _temp_thresh);
-			LOG_INF("Set _temp_thresh to: %s", sbuf);
+			int32_t temp_conversion = (int32_t)(_temp_thresh * 100);
+			_temp_thresh_sensorval.val1 = temp_conversion / 100;
+			_temp_thresh_sensorval.val2 = (temp_conversion % 100) * 10000;
+
+			LOG_INF("Set _temp_thresh_sensorval to: %d.%d",
+					_temp_thresh_sensorval.val1, _temp_thresh_sensorval.val2);
 		}
 		return GOLIOTH_SETTINGS_SUCCESS;
 	}

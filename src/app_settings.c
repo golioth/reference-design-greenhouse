@@ -11,13 +11,14 @@ LOG_MODULE_REGISTER(app_settings, LOG_LEVEL_DBG);
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/sys/printk.h>
 #include <net/golioth/settings.h>
+#include "app_settings.h"
 #include "main.h"
 
 static int32_t _loop_delay_s = 60;
 
 static bool _light_auto = false;
 static bool _temp_auto = false;
-static uint64_t _light_thresh = 0;
+static int64_t _light_thresh = 0;
 static float _temp_thresh = 0;
 static struct sensor_value _temp_thresh_sensorval = { 0, 0 };
 
@@ -25,7 +26,18 @@ int32_t get_loop_delay_s(void) {
 	return _loop_delay_s;
 }
 
-enum golioth_settings_status on_setting(
+void get_light_settings(struct light_settings *ls) {
+	ls->ctrl_auto = _light_auto;
+	ls->thresh = _light_thresh;
+}
+
+void get_temp_settings(struct temp_settings *ts) {
+	ts->ctrl_auto = _temp_auto;
+	ts->tem.val1 = _temp_thresh_sensorval.val1;
+	ts->tem.val2 = _temp_thresh_sensorval.val2;
+}
+
+static enum golioth_settings_status on_setting(
 		const char *key,
 		const struct golioth_settings_value *value) {
 

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <zephyr/sys/printk.h>
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(app_settings, LOG_LEVEL_DBG);
 
@@ -12,10 +13,10 @@ LOG_MODULE_REGISTER(app_settings, LOG_LEVEL_DBG);
 
 static int32_t _loop_delay_s = 60;
 
-static uint8_t _relay_0_state = 0;
-static uint8_t _relay_1_state = 0;
-static bool _relay_0_auto = false;
-static bool _relay_1_auto = false;
+static bool _light_auto = false;
+static bool _temp_auto = false;
+static uint64_t _light_thresh = 0;
+static float _temp_thresh = 0;
 
 int32_t get_loop_delay_s(void) {
 	return _loop_delay_s;
@@ -50,36 +51,72 @@ enum golioth_settings_status on_setting(
 		return GOLIOTH_SETTINGS_SUCCESS;
 	}
 
-	if (strcmp(key, "RELAY0_AUTO") == 0) {
+	if (strcmp(key, "LIGHT_AUTO") == 0) {
 		if (value->type != GOLIOTH_SETTINGS_VALUE_TYPE_BOOL) {
 			return GOLIOTH_SETTINGS_VALUE_FORMAT_NOT_VALID;
 		}
 
 		/* Only update if value has changed */
-		if (_relay_0_auto == (int32_t)value->b) {
-			LOG_DBG("Received RELAY0_AUTO already matches local value.");
+		if (_light_auto == (int32_t)value->b) {
+			LOG_DBG("Received LIGHT_AUTO already matches local value.");
 		}
 		else {
-			_relay_0_auto = (bool)value->b;
+			_light_auto = (bool)value->b;
 
-			LOG_INF("Set _relay_0_auto to: %s", (bool)value->b == true ? "true" : "false");
+			LOG_INF("Set _light_auto to: %s", (bool)value->b == true ? "true" : "false");
 		}
 		return GOLIOTH_SETTINGS_SUCCESS;
 	}
 
-	if (strcmp(key, "RELAY1_AUTO") == 0) {
+	if (strcmp(key, "TEMP_AUTO") == 0) {
 		if (value->type != GOLIOTH_SETTINGS_VALUE_TYPE_BOOL) {
 			return GOLIOTH_SETTINGS_VALUE_FORMAT_NOT_VALID;
 		}
 
 		/* Only update if value has changed */
-		if (_relay_1_auto == (int32_t)value->b) {
-			LOG_DBG("Received RELAY1_AUTO already matches local value.");
+		if (_temp_auto == (int32_t)value->b) {
+			LOG_DBG("Received TEMP_AUTO already matches local value.");
 		}
 		else {
-			_relay_1_auto = (bool)value->b;
+			_temp_auto = (bool)value->b;
 
-			LOG_INF("Set _relay_1_auto to: %s", (bool)value->b == true ? "true" : "false");
+			LOG_INF("Set _temp_auto to: %s", (bool)value->b == true ? "true" : "false");
+		}
+		return GOLIOTH_SETTINGS_SUCCESS;
+	}
+
+	if (strcmp(key, "LIGHT_THRESH") == 0) {
+		if (value->type != GOLIOTH_SETTINGS_VALUE_TYPE_INT64) {
+			return GOLIOTH_SETTINGS_VALUE_FORMAT_NOT_VALID;
+		}
+
+		/* Only update if value has changed */
+		if (_light_thresh == (int64_t)value->i64) {
+			LOG_DBG("Received LIGHT_THRESH already matches local value.");
+		}
+		else {
+			_light_thresh = (int64_t)value->i64;
+
+			LOG_INF("Set _light_thresh to: %lld", _light_thresh);
+		}
+		return GOLIOTH_SETTINGS_SUCCESS;
+	}
+
+	if (strcmp(key, "TEMP_THRESH") == 0) {
+		if (value->type != GOLIOTH_SETTINGS_VALUE_TYPE_FLOAT) {
+			return GOLIOTH_SETTINGS_VALUE_FORMAT_NOT_VALID;
+		}
+
+		/* Only update if value has changed */
+		if (_temp_thresh == (float)value->f) {
+			LOG_DBG("Received TEMP_THRESH already matches local value.");
+		}
+		else {
+			_temp_thresh = (float)value->f;
+
+			char sbuf[11];
+			snprintk(sbuf, sizeof(sbuf), "%f", _temp_thresh);
+			LOG_INF("Set _temp_thresh to: %s", sbuf);
 		}
 		return GOLIOTH_SETTINGS_SUCCESS;
 	}

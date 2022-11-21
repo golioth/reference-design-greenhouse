@@ -12,10 +12,10 @@ LOG_MODULE_REGISTER(app_settings, LOG_LEVEL_DBG);
 
 static int32_t _loop_delay_s = 60;
 
-static uint8_t relay_0_state = 0;
-static uint8_t relay_1_state = 0;
-static bool relay_0_auto = false;
-static bool relay_1_auto = false;
+static uint8_t _relay_0_state = 0;
+static uint8_t _relay_1_state = 0;
+static bool _relay_0_auto = false;
+static bool _relay_1_auto = false;
 
 int32_t get_loop_delay_s(void) {
 	return _loop_delay_s;
@@ -55,9 +55,15 @@ enum golioth_settings_status on_setting(
 			return GOLIOTH_SETTINGS_VALUE_FORMAT_NOT_VALID;
 		}
 
-		relay_0_auto = (bool)value->b;
+		/* Only update if value has changed */
+		if (_relay_0_auto == (int32_t)value->b) {
+			LOG_DBG("Received RELAY0_AUTO already matches local value.");
+		}
+		else {
+			_relay_0_auto = (bool)value->b;
 
-		LOG_INF("Set relay_0_auto to: %s", (bool)value->b == true ? "true" : "false");
+			LOG_INF("Set _relay_0_auto to: %s", (bool)value->b == true ? "true" : "false");
+		}
 		return GOLIOTH_SETTINGS_SUCCESS;
 	}
 
@@ -66,9 +72,15 @@ enum golioth_settings_status on_setting(
 			return GOLIOTH_SETTINGS_VALUE_FORMAT_NOT_VALID;
 		}
 
-		relay_1_auto = (bool)value->b;
+		/* Only update if value has changed */
+		if (_relay_1_auto == (int32_t)value->b) {
+			LOG_DBG("Received RELAY1_AUTO already matches local value.");
+		}
+		else {
+			_relay_1_auto = (bool)value->b;
 
-		LOG_INF("Set relay_1_auto to: %s", (bool)value->b == true ? "true" : "false");
+			LOG_INF("Set _relay_1_auto to: %s", (bool)value->b == true ? "true" : "false");
+		}
 		return GOLIOTH_SETTINGS_SUCCESS;
 	}
 

@@ -11,6 +11,7 @@ LOG_MODULE_REGISTER(app_work, LOG_LEVEL_DBG);
 #include <net/golioth/system_client.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/sensor.h>
+#include "app_settings.h"
 
 static struct golioth_client *client;
 
@@ -29,14 +30,25 @@ static int async_error_handler(struct golioth_req_rsp *rsp) {
 	return 0;
 }
 
+static bool temp_threshold_triggered(struct sensor_value *tem_sensor, struct
+		sensor_value *thresh) {
+
+	if (tem_sensor->val1 > thresh->val1) {
+		return true;
+	}
+
+	if ((tem_sensor->val1 == thresh->val1) && (tem_sensor->val2 > thresh->val2))
+	{
+		return true;
+	}
+
+	return false;
+}
+
 static void sensor_work_handler(struct k_work *work) {
 	struct sensor_value intensity, red, green, blue, tem, pre, hum;
 	int err;
 	char json_buf[256];
-
-	/* Toggle relays as a demo */
-	gpio_pin_toggle_dt(&relay0);
-	gpio_pin_toggle_dt(&relay1);
 
 	/* Read all sensors */
 	err = sensor_sample_fetch(light_sensor);
@@ -74,7 +86,32 @@ static void sensor_work_handler(struct k_work *work) {
 			json_buf, strlen(json_buf),
 			async_error_handler, NULL);
 	if (err) LOG_ERR("Failed to send sensor data to Golioth: %d", err);
+
+	struct light_settings ls;
+	get_light_settings(&ls);
+
+	if (ls.ctrl_auto) {
+		if (intensity.val1 < ls.thresh) {
+			gpio_pin_set_dt(&relay0,1);
+		}
+		else {
+			gpio_pin_set_dt(&relay0,0);
+		}
+	}
+
+	struct temp_settings ts;
+	get_temp_settings(&ts);
+
+	if (ts.ctrl_auto) {
+		if (temp_threshold_triggered(&tem, &ts.tem)) {
+			gpio_pin_set_dt(&relay1,1);
+		}
+		else {
+			gpio_pin_set_dt(&relay1,0);
+		}
+	}
 }
+
 K_WORK_DEFINE(sensor_work, sensor_work_handler);
 
 void app_work_init(struct golioth_client* work_client) {

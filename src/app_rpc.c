@@ -33,12 +33,14 @@ static enum golioth_rpc_status on_reboot(QCBORDecodeContext *request_params_arra
 					   QCBOREncodeContext *response_detail_map,
 					   void *callback_arg)
 {
+	LOG_DBG("Reboot callback");
 	k_work_submit(&reboot_work);
 
 	return GOLIOTH_RPC_OK;
 }
 
 int app_register_rpc(struct golioth_client *rpc_client) {
+	LOG_INF("Registering reboot RPC");
 	int err = golioth_rpc_register(rpc_client, "reboot", on_reboot, NULL);
 
 	if (err) {

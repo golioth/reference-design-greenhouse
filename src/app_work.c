@@ -114,6 +114,25 @@ static void sensor_work_handler(struct k_work *work) {
 
 K_WORK_DEFINE(sensor_work, sensor_work_handler);
 
+static int desired_state_handler(struct golioth_req_rsp *rsp)
+{
+	if (rsp->err) {
+	   LOG_ERR("Failed to receive 'desired' endpoint: %d", rsp->err);
+	   return rsp->err;
+	}
+
+	LOG_HEXDUMP_DBG(rsp->data, rsp->len, "Desired");
+	return 0;
+}
+
+void app_work_observe(void) {
+	int err = golioth_lightdb_observe_cb(client, "desired",
+			GOLIOTH_CONTENT_FORMAT_APP_JSON, desired_state_handler, NULL);
+	if (err) {
+	   LOG_WRN("failed to observe lightdb path: %d", err);
+	}
+}
+
 void app_work_init(struct golioth_client* work_client) {
 	int err;
 

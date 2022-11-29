@@ -12,8 +12,7 @@ LOG_MODULE_REGISTER(app_work, LOG_LEVEL_DBG);
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/sensor.h>
 #include "app_settings.h"
-#include "json_helper.h"
-#include <zephyr/data/json.h>
+#include "app_state.h"
 
 static struct golioth_client *client;
 
@@ -116,56 +115,9 @@ static void sensor_work_handler(struct k_work *work) {
 
 K_WORK_DEFINE(sensor_work, sensor_work_handler);
 
-static int desired_state_handler(struct golioth_req_rsp *rsp)
-{
-	if (rsp->err) {
-	   LOG_ERR("Failed to receive 'desired' endpoint: %d", rsp->err);
-	   return rsp->err;
-	}
-
-	LOG_HEXDUMP_DBG(rsp->data, rsp->len, "Desired");
-	
-	struct greenhouse_state parsed_state;
-
-	int ret = json_obj_parse((char *)rsp->data, rsp->len,
-			     greenhouse_state_descr,
-				 ARRAY_SIZE(greenhouse_state_descr),
-			     &parsed_state);
-
-	if (ret < 0) {
-		LOG_ERR("Error parsing desired values: %d", -1);
-		return ret;
-	}
-	
-	if (ret & 1<<0) {
-		if ((parsed_state.light >= 0) && (parsed_state.light < 2)) {
-			LOG_DBG("Validated desired Light setting: %d", parsed_state.light);
-		}
-		else if (parsed_state.light == -1) {
-			LOG_DBG("No change requested for Light");
-		}
-		else {
-			LOG_ERR("Invalid desired Light value: %d", parsed_state.light);
-		}
-	}
-	if (ret & 1<<1) {
-		if ((parsed_state.vent >= 0) && (parsed_state.vent < 2)) {
-			LOG_DBG("Validated desired Vent setting: %d", parsed_state.vent);
-		}
-		else if (parsed_state.vent == -1) {
-			LOG_DBG("No change requested for Vent");
-		}
-		else {
-			LOG_ERR("Invalid desired Vent value: %d", parsed_state.vent);
-		}
-	}
-
-	return 0;
-}
-
 void app_work_observe(void) {
-	int err = golioth_lightdb_observe_cb(client, "desired",
-			GOLIOTH_CONTENT_FORMAT_APP_JSON, desired_state_handler, NULL);
+	int err = golioth_lightdb_observe_cb(client, APP_STATE_DESIRED_ENDP,
+			GOLIOTH_CONTENT_FORMAT_APP_JSON, app_state_desired_handler, NULL);
 	if (err) {
 	   LOG_WRN("failed to observe lightdb path: %d", err);
 	}

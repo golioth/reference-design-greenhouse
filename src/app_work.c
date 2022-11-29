@@ -139,6 +139,8 @@ void app_work_init(struct golioth_client* work_client) {
 		LOG_ERR("Unable to configure relay1");
 	}
 
+	/* Initialize LightDB State handlers */
+	app_state_init(client);
 }
 
 void app_work_submit(void) {

@@ -12,5 +12,6 @@
 #define APP_STATE_DESIRED_ENDP "desired"
 
 int app_state_desired_handler(struct golioth_req_rsp *rsp);
+void app_state_init(struct golioth_client* state_client);
 
 #endif /* __APP_STATE_H__ */

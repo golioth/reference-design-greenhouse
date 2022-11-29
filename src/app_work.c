@@ -21,7 +21,7 @@ const struct device *weather_sensor = DEVICE_DT_GET(DT_NODELABEL(bme280));
 const struct gpio_dt_spec relay0 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_0), gpios);
 const struct gpio_dt_spec relay1 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_1), gpios);
 
-#define JSON_FMT	"{\"light\":{\"int\":%d,\"r\":%d,\"g\":%d,\"b\":%d},\"weather\":{\"tem\":%d.%d,\"pre\":%d.%d,\"hum\":%d.%d}}"
+#define SENSOR_JSON_FMT	"{\"light\":{\"int\":%d,\"r\":%d,\"g\":%d,\"b\":%d},\"weather\":{\"tem\":%d.%d,\"pre\":%d.%d,\"hum\":%d.%d}}"
 
 static int async_error_handler(struct golioth_req_rsp *rsp) {
 	if (rsp->err) {
@@ -78,7 +78,7 @@ static void sensor_work_handler(struct k_work *work) {
 			pre.val1, pre.val2, hum.val1, hum.val2);
 
 	/* Send sensor data to Golioth */
-	snprintk(json_buf, sizeof(json_buf), JSON_FMT, intensity.val1, red.val1,
+	snprintk(json_buf, sizeof(json_buf), SENSOR_JSON_FMT, intensity.val1, red.val1,
 			green.val1, blue.val1, tem.val1, tem.val2, pre.val1,
 			pre.val2, hum.val1, hum.val2);
 

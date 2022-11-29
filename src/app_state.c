@@ -12,6 +12,7 @@ LOG_MODULE_REGISTER(app_state, LOG_LEVEL_DBG);
 #include "json_helper.h"
 
 #include "app_state.h"
+#include "app_work.h"
 
 #define DESIRED_STATE_FMT "{\"light\":%d,\"vent\":%d}"
 
@@ -68,13 +69,23 @@ int app_state_desired_handler(struct golioth_req_rsp *rsp) {
 
 	if (ret < 0) {
 		LOG_ERR("Error parsing desired values: %d", -1);
-		return ret;
+		return 0;
 	}
 
 	uint8_t change_count = 0;
+	int err;
 	if (ret & 1<<0) {
 		if ((parsed_state.light >= 0) && (parsed_state.light < 2)) {
 			LOG_DBG("Validated desired Light setting: %d", parsed_state.light);
+			err = manual_light_on_off(parsed_state.light);
+			if (err) {
+				if (err == -EBUSY) {
+					LOG_ERR("Manual input ignored while Light set to auto");
+				}
+				else {
+					LOG_ERR("Error changing state of Light: %d", err);
+				}
+			}
 			++change_count;
 		}
 		else if (parsed_state.light == -1) {
@@ -88,6 +99,15 @@ int app_state_desired_handler(struct golioth_req_rsp *rsp) {
 	if (ret & 1<<1) {
 		if ((parsed_state.vent >= 0) && (parsed_state.vent < 2)) {
 			LOG_DBG("Validated desired Vent setting: %d", parsed_state.vent);
+			err = manual_vent_on_off(parsed_state.vent);
+			if (err) {
+				if (err == -EBUSY) {
+					LOG_ERR("Manual input ignored while Vent set to auto");
+				}
+				else {
+					LOG_ERR("Error changing state of Vent: %d", err);
+				}
+			}
 			++change_count;
 		}
 		else if (parsed_state.vent == -1) {
@@ -104,6 +124,7 @@ int app_state_desired_handler(struct golioth_req_rsp *rsp) {
 			k_work_submit(&reset_desired_work);
 		}
 	}
+
 	return 0;
 }
 

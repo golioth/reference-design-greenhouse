@@ -18,10 +18,58 @@ static struct golioth_client *client;
 
 const struct device *light_sensor = DEVICE_DT_GET(DT_NODELABEL(apds9960));
 const struct device *weather_sensor = DEVICE_DT_GET(DT_NODELABEL(bme280));
-const struct gpio_dt_spec relay0 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_0), gpios);
-const struct gpio_dt_spec relay1 = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_1), gpios);
+const struct gpio_dt_spec relay_light = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_0), gpios);
+const struct gpio_dt_spec relay_vent = GPIO_DT_SPEC_GET(DT_NODELABEL(relay_1), gpios);
 
 #define SENSOR_JSON_FMT	"{\"light\":{\"int\":%d,\"r\":%d,\"g\":%d,\"b\":%d},\"weather\":{\"tem\":%d.%d,\"pre\":%d.%d,\"hum\":%d.%d}}"
+
+#define RELAY_ON  1
+#define RELAY_OFF 0
+
+uint8_t _light_cur_state = 0;
+uint8_t _vent_cur_state = 0;
+
+static void set_light_on_off(uint8_t state) {
+	if (state > 1) {
+		LOG_ERR("Light state out of range [0..1]: %d", state);
+		return;
+	}
+	_light_cur_state = state;
+	gpio_pin_set_dt(&relay_light, _light_cur_state);
+}
+
+static void set_vent_on_off(uint8_t state) {
+	if (state > 1) {
+		LOG_ERR("Vent state out of range [0..1]: %d", state);
+		return;
+	}
+	_vent_cur_state = state;
+	gpio_pin_set_dt(&relay_vent, _vent_cur_state);
+}
+
+int manual_light_on_off(uint8_t state) {
+	struct light_settings ls;
+	get_light_settings(&ls);
+
+	if (ls.ctrl_auto) {
+		return -EBUSY;
+	}
+
+	set_light_on_off(state);
+	return 0;
+}
+
+int manual_vent_on_off(uint8_t state) {
+	struct temp_settings ts;
+	get_temp_settings(&ts);
+
+	if (ts.ctrl_auto) {
+		return -EBUSY;
+	}
+
+	set_vent_on_off(state);
+	return 0;
+}
 
 static int async_error_handler(struct golioth_req_rsp *rsp) {
 	if (rsp->err) {
@@ -93,10 +141,10 @@ static void sensor_work_handler(struct k_work *work) {
 
 	if (ls.ctrl_auto) {
 		if (intensity.val1 < ls.thresh) {
-			gpio_pin_set_dt(&relay0,1);
+			set_light_on_off(RELAY_ON);
 		}
 		else {
-			gpio_pin_set_dt(&relay0,0);
+			set_light_on_off(RELAY_OFF);
 		}
 	}
 
@@ -105,10 +153,10 @@ static void sensor_work_handler(struct k_work *work) {
 
 	if (ts.ctrl_auto) {
 		if (temp_threshold_triggered(&tem, &ts.tem)) {
-			gpio_pin_set_dt(&relay1,1);
+			set_vent_on_off(RELAY_ON);
 		}
 		else {
-			gpio_pin_set_dt(&relay1,0);
+			set_vent_on_off(RELAY_OFF);
 		}
 	}
 }
@@ -129,14 +177,14 @@ void app_work_init(struct golioth_client* work_client) {
 	client = work_client;
 
 	/* Initialize relays */
-	err = gpio_pin_configure_dt(&relay0, GPIO_OUTPUT_INACTIVE);
+	err = gpio_pin_configure_dt(&relay_light, GPIO_OUTPUT_INACTIVE);
 	if (err < 0) {
-		LOG_ERR("Unable to configure relay0");
+		LOG_ERR("Unable to configure relay_light");
 	}
 
-	err = gpio_pin_configure_dt(&relay1, GPIO_OUTPUT_INACTIVE);
+	err = gpio_pin_configure_dt(&relay_vent, GPIO_OUTPUT_INACTIVE);
 	if (err < 0) {
-		LOG_ERR("Unable to configure relay1");
+		LOG_ERR("Unable to configure relay_vent");
 	}
 
 	/* Initialize LightDB State handlers */

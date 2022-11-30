@@ -37,10 +37,18 @@ static void golioth_on_connect(struct golioth_client *client)
 {
 	k_sem_give(&connected);
 
-	app_dfu_observe();
-	app_register_settings(client);
-	app_register_rpc(client);
-	app_work_observe();
+	/**
+	 * Workaround for duplicate observations. This will eventually be addressed
+	 * in the Golioth SDK and iteration/conditional can be removed
+	 **/
+	static int iteration = 0;
+	if (iteration > 0) {
+		app_dfu_observe();
+		app_register_settings(client);
+		app_register_rpc(client);
+		app_work_observe();
+	}
+	++iteration;
 }
 
 void button_pressed(const struct device *dev, struct gpio_callback *cb,

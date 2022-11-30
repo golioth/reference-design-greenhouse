@@ -13,6 +13,7 @@ LOG_MODULE_REGISTER(app_work, LOG_LEVEL_DBG);
 #include <zephyr/drivers/sensor.h>
 #include "app_settings.h"
 #include "app_state.h"
+#include "app_work.h"
 
 static struct golioth_client *client;
 
@@ -36,6 +37,7 @@ static void set_light_on_off(uint8_t state) {
 	}
 	_light_cur_state = state;
 	gpio_pin_set_dt(&relay_light, _light_cur_state);
+	app_state_update_actual();
 }
 
 static void set_vent_on_off(uint8_t state) {
@@ -45,6 +47,7 @@ static void set_vent_on_off(uint8_t state) {
 	}
 	_vent_cur_state = state;
 	gpio_pin_set_dt(&relay_vent, _vent_cur_state);
+	app_state_update_actual();
 }
 
 int manual_light_on_off(uint8_t state) {
@@ -69,6 +72,12 @@ int manual_vent_on_off(uint8_t state) {
 
 	set_vent_on_off(state);
 	return 0;
+}
+
+void get_relay_state(struct relay_state *r_state) {
+	r_state->light = _light_cur_state;
+	r_state->vent = _vent_cur_state;
+	return;
 }
 
 static int async_error_handler(struct golioth_req_rsp *rsp) {
@@ -139,12 +148,12 @@ static void sensor_work_handler(struct k_work *work) {
 	struct light_settings ls;
 	get_light_settings(&ls);
 
+	uint8_t desired_state;
 	if (ls.ctrl_auto) {
-		if (intensity.val1 < ls.thresh) {
-			set_light_on_off(RELAY_ON);
-		}
-		else {
-			set_light_on_off(RELAY_OFF);
+		desired_state = (intensity.val1 < ls.thresh) ? RELAY_ON : RELAY_OFF;
+
+		if (desired_state != _light_cur_state) {
+			set_light_on_off(desired_state);
 		}
 	}
 
@@ -152,11 +161,10 @@ static void sensor_work_handler(struct k_work *work) {
 	get_temp_settings(&ts);
 
 	if (ts.ctrl_auto) {
-		if (temp_threshold_triggered(&tem, &ts.tem)) {
-			set_vent_on_off(RELAY_ON);
-		}
-		else {
-			set_vent_on_off(RELAY_OFF);
+		desired_state = (temp_threshold_triggered(&tem, &ts.tem)) ? RELAY_ON :
+			RELAY_OFF;
+		if (desired_state != _vent_cur_state) {
+			set_vent_on_off(desired_state);
 		}
 	}
 }

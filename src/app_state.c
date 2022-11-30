@@ -14,13 +14,14 @@ LOG_MODULE_REGISTER(app_state, LOG_LEVEL_DBG);
 #include "app_state.h"
 #include "app_work.h"
 
-#define DESIRED_STATE_FMT "{\"light\":%d,\"vent\":%d}"
+#define DEVICE_STATE_FMT "{\"light\":%d,\"vent\":%d}"
 
 static struct golioth_client *client;
 
 static K_SEM_DEFINE(reset_desired, 0, 1);
+static K_SEM_DEFINE(update_actual, 0, 1);
 
-static int state_set_handler(struct golioth_req_rsp *rsp)
+static int async_handler(struct golioth_req_rsp *rsp)
 {
 	if (rsp->err) {
 		LOG_WRN("Failed to set state: %d", rsp->err);
@@ -34,17 +35,19 @@ static int state_set_handler(struct golioth_req_rsp *rsp)
 
 void app_state_init(struct golioth_client* state_client) {
 	client = state_client;
+	app_state_update_actual();
 	k_sem_give(&reset_desired);
+	k_sem_give(&update_actual);
 }
 
 static void reset_desired_work_handler(struct k_work *work) {
-	char sbuf[strlen(DESIRED_STATE_FMT)+8]; /* small bit of extra space */
-	snprintk(sbuf, sizeof(sbuf), DESIRED_STATE_FMT, -1, -1);
+	char sbuf[strlen(DEVICE_STATE_FMT)+8]; /* small bit of extra space */
+	snprintk(sbuf, sizeof(sbuf), DEVICE_STATE_FMT, -1, -1);
 
 	int err;
 	err = golioth_lightdb_set_cb(client, APP_STATE_DESIRED_ENDP,
 			GOLIOTH_CONTENT_FORMAT_APP_JSON, sbuf, strlen(sbuf),
-			state_set_handler, NULL);
+			async_handler, NULL);
 	if (err) {
 		LOG_ERR("Unable to write to LightDB State: %d", err);
 	}
@@ -52,6 +55,31 @@ static void reset_desired_work_handler(struct k_work *work) {
 }
 
 K_WORK_DEFINE(reset_desired_work, reset_desired_work_handler);
+
+static void update_actual_state_work_handler(struct k_work *work) {
+	struct relay_state r_state;
+	get_relay_state(&r_state);
+
+	char sbuf[strlen(DEVICE_STATE_FMT)+8]; /* small bit of extra space */
+	snprintk(sbuf, sizeof(sbuf), DEVICE_STATE_FMT, r_state.light, r_state.vent);
+
+	int err;
+	err = golioth_lightdb_set_cb(client, APP_STATE_ACTUAL_ENDP,
+			GOLIOTH_CONTENT_FORMAT_APP_JSON, sbuf, strlen(sbuf),
+			async_handler, NULL);
+	if (err) {
+		LOG_ERR("Unable to write to LightDB State: %d", err);
+	}
+	k_sem_give(&update_actual);
+}
+
+K_WORK_DEFINE(update_actual_state_work, update_actual_state_work_handler);
+
+void app_state_update_actual(void) {
+	if (k_sem_take(&update_actual, K_NO_WAIT) == 0) {
+		k_work_submit(&update_actual_state_work);
+	}
+}
 
 int app_state_desired_handler(struct golioth_req_rsp *rsp) {
 	if (rsp->err) {
@@ -69,10 +97,12 @@ int app_state_desired_handler(struct golioth_req_rsp *rsp) {
 
 	if (ret < 0) {
 		LOG_ERR("Error parsing desired values: %d", -1);
+		k_work_submit(&reset_desired_work);
 		return 0;
 	}
 
-	uint8_t change_count = 0;
+	uint8_t desired_processed_count = 0;
+	uint8_t state_change_count = 0;
 	int err;
 	if (ret & 1<<0) {
 		if ((parsed_state.light >= 0) && (parsed_state.light < 2)) {
@@ -86,14 +116,15 @@ int app_state_desired_handler(struct golioth_req_rsp *rsp) {
 					LOG_ERR("Error changing state of Light: %d", err);
 				}
 			}
-			++change_count;
+			++desired_processed_count;
+			++state_change_count;
 		}
 		else if (parsed_state.light == -1) {
 			LOG_DBG("No change requested for Light");
 		}
 		else {
 			LOG_ERR("Invalid desired Light value: %d", parsed_state.light);
-			++change_count;
+			++desired_processed_count;
 		}
 	}
 	if (ret & 1<<1) {
@@ -108,18 +139,19 @@ int app_state_desired_handler(struct golioth_req_rsp *rsp) {
 					LOG_ERR("Error changing state of Vent: %d", err);
 				}
 			}
-			++change_count;
+			++desired_processed_count;
+			++state_change_count;
 		}
 		else if (parsed_state.vent == -1) {
 			LOG_DBG("No change requested for Vent");
 		}
 		else {
 			LOG_ERR("Invalid desired Vent value: %d", parsed_state.vent);
-			++change_count;
+			++desired_processed_count;
 		}
 	}
 
-	if (change_count) {
+	if (desired_processed_count) {
 		if (k_sem_take(&reset_desired, K_NO_WAIT) == 0) {
 			k_work_submit(&reset_desired_work);
 		}

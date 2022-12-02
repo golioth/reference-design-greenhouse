@@ -89,7 +89,23 @@
           "color": {
             "mode": "thresholds"
           },
-          "mappings": [],
+          "mappings": [
+            {
+              "options": {
+                "false": {
+                  "color": "orange",
+                  "index": 0,
+                  "text": "Manual"
+                },
+                "true": {
+                  "color": "blue",
+                  "index": 1,
+                  "text": "Automatic"
+                }
+              },
+              "type": "value"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -146,7 +162,7 @@
           "withStreaming": true
         }
       ],
-      "title": "Light Auto",
+      "title": "Grow Light Control:",
       "type": "stat"
     },
     {
@@ -241,13 +257,14 @@
     },
     {
       "datasource": {
-        "type": "golioth-websocket-datasource",
-        "uid": "78NSx7F4k"
+        "type": "marcusolsson-json-datasource",
+        "uid": "aehaxnFVz"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "fixedColor": "yellow",
+            "mode": "fixed"
           },
           "custom": {
             "axisCenteredZero": false,
@@ -256,20 +273,23 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 0,
+            "fillOpacity": 50,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
+            "lineInterpolation": "smooth",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 5,
             "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -284,12 +304,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "yellow",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           }
@@ -297,7 +313,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 12,
+        "h": 15,
         "w": 10,
         "x": 11,
         "y": 1
@@ -317,24 +333,30 @@
       },
       "targets": [
         {
+          "body": "\n\t\"start\" : \"${__from:date}\",\n  \"end\" : \"${__to:date}\",\n\t\"perPage\" : 99999,\n\t\"query\": {\n\t\t\"fields\" : [\n\t\t\t{ \"path\": \"time\" },\n\t\t\t{ \"path\": \"deviceId\"},\n\t\t\t{ \"path\": \"*\"}\n\t\t]\n\t}\n}",
+          "cacheDurationSeconds": 300,
           "datasource": {
-            "type": "golioth-websocket-datasource",
-            "uid": "78NSx7F4k"
+            "type": "marcusolsson-json-datasource",
+            "uid": "aehaxnFVz"
           },
           "fields": [
             {
-              "jsonPath": "$.result.data.data.sensor.light.int",
+              "jsonPath": "$.list[*].data.sensor.light.int",
               "language": "jsonpath",
               "name": ""
             },
             {
-              "jsonPath": "$.result.data.timestamp",
+              "jsonPath": "$.list[*].time",
               "language": "jsonpath",
-              "name": ""
+              "name": "",
+              "type": "time"
             }
           ],
-          "path": "/projects/reference-design-greenhouse/stream",
+          "method": "POST",
+          "path": "",
+          "queryParams": "",
           "refId": "A",
+          "urlPath": "/devices/636d7df208be30b7e6d865d6/stream",
           "withStreaming": true
         }
       ],
@@ -349,7 +371,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "fixedColor": "text",
+            "mode": "fixed"
           },
           "mappings": [],
           "thresholds": {
@@ -360,7 +383,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unit": "lux"
         },
         "overrides": []
       },
@@ -421,7 +445,23 @@
           "color": {
             "mode": "thresholds"
           },
-          "mappings": [],
+          "mappings": [
+            {
+              "options": {
+                "false": {
+                  "color": "orange",
+                  "index": 0,
+                  "text": "Manual"
+                },
+                "true": {
+                  "color": "blue",
+                  "index": 1,
+                  "text": "Automatic"
+                }
+              },
+              "type": "value"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -579,8 +619,10 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "fixedColor": "text",
+            "mode": "fixed"
           },
+          "decimals": 2,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -590,7 +632,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unit": "celsius"
         },
         "overrides": []
       },
@@ -643,13 +686,181 @@
     },
     {
       "datasource": {
-        "type": "golioth-websocket-datasource",
-        "uid": "78NSx7F4k"
+        "type": "marcusolsson-json-datasource",
+        "uid": "aehaxnFVz"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "fixedColor": "text",
+            "mode": "fixed"
+          },
+          "links": [
+            {
+              "title": "Settings Label",
+              "url": "${__field.name}"
+            }
+          ],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 3,
+        "y": 13
+      },
+      "id": 17,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "text": {},
+        "textMode": "value"
+      },
+      "pluginVersion": "9.2.7-0f96ed148c",
+      "targets": [
+        {
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "aehaxnFVz"
+          },
+          "fields": [
+            {
+              "jsonPath": "list[key='LOOP_DELAY_S'][-1].deviceId ? \"Device:\" : list[key='LOOP_DELAY_S'].blueprintId ? \"Blueprint:\" : \"Project:\"",
+              "language": "jsonata",
+              "name": ""
+            },
+            {
+              "jsonPath": "$join([$string(list[key='LOOP_DELAY_S'][-1].value), \" s\"])",
+              "language": "jsonata",
+              "name": ""
+            }
+          ],
+          "method": "GET",
+          "path": "",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/devices/636d7df208be30b7e6d865d6/settings",
+          "withStreaming": true
+        }
+      ],
+      "title": "Sensor Reading Delay (Seconds)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "aehaxnFVz"
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 7,
+        "y": 13
+      },
+      "id": 19,
+      "options": {
+        "alt_field": "",
+        "baseUrl": "https://firebasestorage.googleapis.com/v0/b/golioth.appspot.com/o/devrel%2Freference-design-greenhouse%2F",
+        "height": "75",
+        "icon_field": "key",
+        "open_url": {
+          "base_url": "",
+          "enable": false,
+          "metric_field": "",
+          "suffix": ""
+        },
+        "overlay": {
+          "bindings": {
+            "bindings": [],
+            "has_text": true,
+            "unbounded": "#66666620"
+          },
+          "field": "",
+          "height": {
+            "size": 5,
+            "unit": "%"
+          },
+          "position": "Top right",
+          "width": {
+            "size": 5,
+            "unit": "%"
+          }
+        },
+        "singleFill": true,
+        "slideshow": {
+          "duration": 5000,
+          "enable": false,
+          "pauseOnHover": true,
+          "transition": "Slide",
+          "transition_duration": 1000
+        },
+        "suffix": ".svg?alt=media&token=7f47ea70-58b2-4ead-8255-e1be5c0a547f",
+        "tooltip": false,
+        "tooltip_date_elapsed": false,
+        "tooltip_field": "",
+        "tooltip_include_date": false,
+        "tooltip_include_field": true,
+        "underline": {
+          "field": "",
+          "text_size": "14"
+        },
+        "width": "75"
+      },
+      "targets": [
+        {
+          "cacheDurationSeconds": 300,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "aehaxnFVz"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.list[0].key",
+              "language": "jsonpath",
+              "name": ""
+            }
+          ],
+          "method": "GET",
+          "path": "",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/devices/636d7df208be30b7e6d865d6/settings",
+          "withStreaming": true
+        }
+      ],
+      "type": "dalvany-image-panel"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "aehaxnFVz"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "super-light-red",
+            "mode": "fixed"
           },
           "custom": {
             "axisCenteredZero": false,
@@ -665,8 +876,8 @@
               "tooltip": false,
               "viz": false
             },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
+            "lineInterpolation": "smooth",
+            "lineWidth": 6,
             "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
@@ -688,10 +899,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           }
@@ -702,9 +909,9 @@
         "h": 7,
         "w": 6,
         "x": 3,
-        "y": 13
+        "y": 16
       },
-      "id": 5,
+      "id": 14,
       "options": {
         "legend": {
           "calcs": [],
@@ -719,39 +926,46 @@
       },
       "targets": [
         {
+          "body": "{\n\t\"start\" : \"${__from:date}\",\n  \"end\" : \"${__to:date}\",\n\t\"perPage\" : 99999,\n\t\"query\": {\n\t\t\"fields\" : [\n\t\t\t{ \"path\": \"time\" },\n\t\t\t{ \"path\": \"deviceId\"},\n\t\t\t{ \"path\": \"*\"}\n\t\t]\n\t}\n}",
+          "cacheDurationSeconds": 300,
           "datasource": {
-            "type": "golioth-websocket-datasource",
-            "uid": "78NSx7F4k"
+            "type": "marcusolsson-json-datasource",
+            "uid": "aehaxnFVz"
           },
           "fields": [
             {
-              "jsonPath": "$.result.data.data.sensor.weather.pre",
+              "jsonPath": "$.list[*].data.sensor.weather.tem",
               "language": "jsonpath",
               "name": ""
             },
             {
-              "jsonPath": "$.result.data.timestamp",
+              "jsonPath": "$.list[*].time",
               "language": "jsonpath",
-              "name": ""
+              "name": "",
+              "type": "time"
             }
           ],
-          "path": "/projects/reference-design-greenhouse/stream",
+          "method": "POST",
+          "path": "",
+          "queryParams": "",
           "refId": "A",
+          "urlPath": "/devices/636d7df208be30b7e6d865d6/stream",
           "withStreaming": true
         }
       ],
-      "title": "Pressure",
+      "title": "Temperature",
       "type": "timeseries"
     },
     {
       "datasource": {
-        "type": "golioth-websocket-datasource",
-        "uid": "78NSx7F4k"
+        "type": "marcusolsson-json-datasource",
+        "uid": "aehaxnFVz"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "fixedColor": "blue",
+            "mode": "fixed"
           },
           "custom": {
             "axisCenteredZero": false,
@@ -767,8 +981,8 @@
               "tooltip": false,
               "viz": false
             },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
+            "lineInterpolation": "smooth",
+            "lineWidth": 5,
             "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
@@ -804,7 +1018,7 @@
         "h": 7,
         "w": 6,
         "x": 9,
-        "y": 13
+        "y": 16
       },
       "id": 6,
       "options": {
@@ -821,24 +1035,30 @@
       },
       "targets": [
         {
+          "body": "{\n\t\"start\" : \"${__from:date}\",\n  \"end\" : \"${__to:date}\",\n\t\"perPage\" : 99999,\n\t\"query\": {\n\t\t\"fields\" : [\n\t\t\t{ \"path\": \"time\" },\n\t\t\t{ \"path\": \"deviceId\"},\n\t\t\t{ \"path\": \"*\"}\n\t\t]\n\t}\n}",
+          "cacheDurationSeconds": 300,
           "datasource": {
-            "type": "golioth-websocket-datasource",
-            "uid": "78NSx7F4k"
+            "type": "marcusolsson-json-datasource",
+            "uid": "aehaxnFVz"
           },
           "fields": [
             {
-              "jsonPath": "$.result.data.data.sensor.weather.hum",
+              "jsonPath": "$.list[*].data.sensor.weather.hum",
               "language": "jsonpath",
               "name": ""
             },
             {
-              "jsonPath": "$.result.data.timestamp",
+              "jsonPath": "$.list[*].time",
               "language": "jsonpath",
-              "name": ""
+              "name": "",
+              "type": "time"
             }
           ],
-          "path": "/projects/reference-design-greenhouse/stream",
+          "method": "POST",
+          "path": "",
+          "queryParams": "",
           "refId": "A",
+          "urlPath": "/devices/636d7df208be30b7e6d865d6/stream",
           "withStreaming": true
         }
       ],
@@ -847,13 +1067,14 @@
     },
     {
       "datasource": {
-        "type": "golioth-websocket-datasource",
-        "uid": "78NSx7F4k"
+        "type": "marcusolsson-json-datasource",
+        "uid": "aehaxnFVz"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "fixedColor": "purple",
+            "mode": "fixed"
           },
           "custom": {
             "axisCenteredZero": false,
@@ -869,8 +1090,8 @@
               "tooltip": false,
               "viz": false
             },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
+            "lineInterpolation": "smooth",
+            "lineWidth": 5,
             "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
@@ -906,9 +1127,9 @@
         "h": 7,
         "w": 6,
         "x": 15,
-        "y": 13
+        "y": 16
       },
-      "id": 14,
+      "id": 5,
       "options": {
         "legend": {
           "calcs": [],
@@ -923,129 +1144,35 @@
       },
       "targets": [
         {
-          "datasource": {
-            "type": "golioth-websocket-datasource",
-            "uid": "78NSx7F4k"
-          },
-          "fields": [
-            {
-              "jsonPath": "$.result.data.data.sensor.weather.tem",
-              "language": "jsonpath",
-              "name": ""
-            },
-            {
-              "jsonPath": "$.result.data.timestamp",
-              "language": "jsonpath",
-              "name": ""
-            }
-          ],
-          "path": "/projects/reference-design-greenhouse/stream",
-          "refId": "A",
-          "withStreaming": true
-        }
-      ],
-      "title": "Temperature",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "aehaxnFVz"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 18,
-        "x": 3,
-        "y": 20
-      },
-      "id": 9,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/.*/",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "9.2.7-0f96ed148c",
-      "targets": [
-        {
-          "cacheDurationSeconds": 0,
+          "body": "{\n\t\"start\" : \"${__from:date}\",\n  \"end\" : \"${__to:date}\",\n\t\"perPage\" : 99999,\n\t\"query\": {\n\t\t\"fields\" : [\n\t\t\t{ \"path\": \"time\" },\n\t\t\t{ \"path\": \"deviceId\"},\n\t\t\t{ \"path\": \"*\"}\n\t\t]\n\t}\n}",
+          "cacheDurationSeconds": 300,
           "datasource": {
             "type": "marcusolsson-json-datasource",
             "uid": "aehaxnFVz"
           },
           "fields": [
             {
-              "jsonPath": "$.list[?(@.key==\"LOOP_DELAY_S\" && !@.blueprintId && !@.deviceId)].value",
+              "jsonPath": "$.list[*].data.sensor.weather.pre",
               "language": "jsonpath",
-              "name": "Period (Proj)"
+              "name": ""
             },
             {
-              "jsonPath": "$.list[?(@.key==\"LOOP_DELAY_S\" && @.blueprintId)].value",
+              "jsonPath": "$.list[*].time",
               "language": "jsonpath",
-              "name": "Period (Blu)"
-            },
-            {
-              "jsonPath": "$.list[?(@.key==\"LOOP_DELAY_S\" && @.deviceId)].value",
-              "language": "jsonpath",
-              "name": "Period (Dev)"
-            },
-            {
-              "jsonPath": "$.list[?(@.key==\"LIGHT_AUTO\" && @.deviceId)].value",
-              "language": "jsonpath",
-              "name": "Light Auto"
-            },
-            {
-              "jsonPath": "$.list[?(@.key==\"LIGHT_THRESH\")].value",
-              "language": "jsonpath",
-              "name": "Light Threshold"
-            },
-            {
-              "jsonPath": "$.list[?(@.key==\"TEMP_AUTO\" && @.deviceId)].value",
-              "language": "jsonpath",
-              "name": "Temp Auto"
-            },
-            {
-              "jsonPath": "$.list[?(@.key==\"TEMP_THRESH\" && @.deviceId)].value",
-              "language": "jsonpath",
-              "name": "Temp Threshold"
+              "name": "",
+              "type": "time"
             }
           ],
-          "method": "GET",
+          "method": "POST",
           "path": "",
           "queryParams": "",
           "refId": "A",
-          "urlPath": "/devices/636d7df208be30b7e6d865d6/settings",
+          "urlPath": "/devices/636d7df208be30b7e6d865d6/stream",
           "withStreaming": true
         }
       ],
-      "title": "Settings",
-      "type": "stat"
+      "title": "Pressure",
+      "type": "timeseries"
     }
   ],
   "refresh": "5s",
@@ -1056,13 +1183,13 @@
     "list": []
   },
   "time": {
-    "from": "2022-11-30T22:08:21.781Z",
-    "to": "2022-11-30T22:09:36.510Z"
+    "from": "now-7h",
+    "to": "now-400m"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Greenhouse Controller",
   "uid": "8YTFanK4k",
-  "version": 18,
+  "version": 24,
   "weekStart": ""
 }

@@ -1,3 +1,8 @@
+/* 
+ * Copyright (c) 2022-2024 Golioth, Inc.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 / {
 	relay_pins {
 		compatible = "gpio-relay";
@@ -12,15 +17,16 @@
 
 &i2c1 {
 	bme280: bme280@76 {
+		status="okay";
 		compatible = "bosch,bme280";
 		reg = <0x76>;
 	};
 
 	apds9960: apds9960@39 {
+		status="okay";
 		compatible = "avago,apds9960";
 		reg = <0x39>;
-		label = "APDS9960";
-		int-gpios = <&gpio0 4 (GPIO_ACTIVE_LOW)>;
+		int-gpios = <&gpio0 4 (GPIO_ACTIVE_LOW)>; /* RST1 */
 	};
 };
 

@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2022 Golioth, Inc.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #ifndef __JSON_HELPER_H_
 #define __JSON_HELPER_H_
 
@@ -14,3 +20,4 @@ static const struct json_obj_descr greenhouse_state_descr[] = {
 };
 
 #endif
+

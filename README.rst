@@ -1,82 +1,80 @@
 ..
-   Copyright (c) 2022-2023 Golioth, Inc.
+   Copyright (c) 2024 Golioth, Inc.
    SPDX-License-Identifier: Apache-2.0
 
-Golioth Reference Design Template
-#################################
+Golioth Greenhouse Controller Reference Design
+##############################################
 
-Overview
-********
+This repository contains the firmware source code and `pre-built release
+firmware images <releases_>`_ for the Golioth Greenhouse Controller reference
+design.
 
-Use this repo as a template when beginning work on a new Golioth Reference
-Design. It is set up as a standalone repository, with all Golioth features
-implemented in basic form. Search the project for the word ``template`` and
-``rd_template`` and update those occurrences with your reference design's name.
+The full project details are available on the `Greenhouse Controller Project Page`_.
 
-Local set up
-************
+Supported Hardware
+******************
 
-Do not clone this repo using git. Zephyr's ``west`` meta tool should be used to
-set up your local workspace.
+This firmware can be built for a variety of supported hardware platforms.
 
-Install the Python virtual environment (recommended)
-====================================================
+.. pull-quote::
+   [!IMPORTANT]
 
-.. code-block:: shell
+   In Zephyr, each of these different hardware variants is given a unique
+   "board" identifier, which is used by the build system to generate firmware
+   for that variant.
 
-   cd ~
-   mkdir golioth-reference-design-template
-   python -m venv golioth-reference-design-template/.venv
-   source golioth-reference-design-template/.venv/bin/activate
-   pip install wheel west
+   When building firmware using the instructions below, make sure to use the
+   correct Zephyr board identifier that corresponds to your follow-along
+   hardware platform.
 
-Use ``west`` to initialize and install
-======================================
+.. list-table:: **Custom Golioth Hardware**
+   :header-rows: 1
 
-.. code-block:: shell
+   * - Hardware
+     - Zephyr Board
+     - Project Page
+   * - .. image:: images/Greenhouse_controller.png
+          :width: 240
+     - ``aludel_mini_v1_sparkfun9160_ns``
+     - `Greenhouse Controller Project Page`_
 
-   cd ~/golioth-reference-design-template
-   west init -m git@github.com:golioth/reference-design-template.git .
-   west update
-   west zephyr-export
-   pip install -r deps/zephyr/scripts/requirements.txt
+############################
 
-Building the application
-************************
+Firmware Overview
+*****************
 
-Build Zephyr sample application for Golioth Aludel-Mini
-(``aludel_mini_v1_sparkfun9160_ns``) from the top level of your project. After a
-successful build you will see a new ``build`` directory. Note that any changes
-(and git commits) to the project itself will be inside the ``app`` folder. The
-``build`` and ``deps`` directories being one level higher prevents the repo from
-cataloging all of the changes to the dependencies and the build (so no
-``.gitignore`` is needed)
+This is a Reference Design for a Greenhouse controller that monitors
+environmental factors like light intensity, temperature, humidity, and pressure
+and uses relays to actuate grow lights and ventilation.
 
-During building, replace ``<your.semantic.version>`` to utilize the DFU
-functionality on this Reference Design.
+Specifically, the following parameters can be monitored:
 
-.. code-block:: text
+* 💦 Relative humidity (%RH)
+* 🌡️ Temperature (°C)
+* 💨 Pressure (kPa)
+* ☀️  Light Intensity (LUX)
+* 🔴 Red Light Value
+* 🟢 Green Light Value
+* 🔵 Blue Light Value
 
-   $ (.venv) west build -p -b aludel_mini_v1_sparkfun9160_ns app -- -DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION=\"<your.semantic.version>\"
-   $ (.venv) west flash
+The sensor values are uploaded to the LightDB Stream database in the Golioth
+Cloud. The sensor sampling frequency and other sensor parameters are remotely
+configurable via the Golioth Settings service.
 
-Configure PSK-ID and PSK using the device shell based on your Golioth
-credentials and reboot:
+Supported Golioth Zephyr SDK Features
+=====================================
 
-.. code-block:: text
+This firmware implements the following features from the Golioth Zephyr SDK:
 
-   uart:~$ settings set golioth/psk-id <my-psk-id@my-project>
-   uart:~$ settings set golioth/psk <my-psk>
-   uart:~$ kernel reboot cold
+- `Device Settings Service <https://docs.golioth.io/firmware/zephyr-device-sdk/device-settings-service>`_
+- `LightDB State Client <https://docs.golioth.io/firmware/zephyr-device-sdk/light-db/>`_
+- `LightDB Stream Client <https://docs.golioth.io/firmware/zephyr-device-sdk/light-db-stream/>`_
+- `Logging Client <https://docs.golioth.io/firmware/zephyr-device-sdk/logging/>`_
+- `Over-the-Air (OTA) Firmware Upgrade <https://docs.golioth.io/firmware/device-sdk/firmware-upgrade>`_
+- `Remote Procedure Call (RPC) <https://docs.golioth.io/firmware/zephyr-device-sdk/remote-procedure-call>`_
 
-Golioth Features
-****************
-
-This app currently implements Over-the-Air (OTA) firmware updates, Settings
-Service, Logging, RPC, and both LightDB State and LightDB Stream data.
-
-Settings Service
-================
+Device Settings Service
+-----------------------
 
 The following settings should be set in the Device Settings menu of the
 `Golioth Console`_.
@@ -86,8 +84,70 @@ The following settings should be set in the Device Settings menu of the
 
    Default value is ``60`` seconds.
 
+``LIGHT_AUTO``
+   Enables or disables the automatic grow light control.
+   Set to a boolean value.
+
+   Default value is ``true``.
+
+``TEMP_AUTO``
+   Enables or disables the automatic ventilation control.
+   Set to a boolean value.
+
+   Default value is ``true``.
+
+``LIGHT_THRESH``
+   Clear Light Intensity threshold for automatic grow light control.
+
+   Default value is ``900`` LUX.
+
+
+``TEMP_THRESH``
+   Temperature threshold for automatic ventilation control.
+
+   Default value is ``21.5`` °C.
+
+LightDB Stream Service
+----------------------
+
+Sensor data is periodically sent to the following ``sensor/*`` endpoints of the
+LightDB Stream service:
+
+* ``sensor/ligth/int``: Clear Light Intensity (LUX)
+* ``sensor/ligth/r``: Red Light Value
+* ``sensor/ligth/g``: Green Light Value
+* ``sensor/ligth/b``: Blue Light Value
+* ``sensor/weather/humidity``:Humidity (%RH)
+* ``sensor/weather/pressure``: Pressure (kPa)
+* ``sensor/weather/temp``: Temperature (°C)
+
+Battery voltage and level readings are periodically sent to the following
+``battery/*`` endpoints:
+
+* ``battery/batt_v``: Battery Voltage (V)
+* ``battery/batt_lvl``: Battery Level (%)
+
+LightDB State Service
+---------------------
+
+The concept of Digital Twin is demonstrated with the LightDB State ``light``
+and ``vent`` variables that are members of the ``desired`` and ``state``
+endpoints. Variables ``light`` and ``vent`` correspond to relay state,
+where ``0`` means the relay is open, and ``1`` that the relay is closed.
+Changing the values of ``desired`` endpoints will have effect only if
+``LIGHT_AUTO`` or ``TEMP_AUTO`` are set to ``false`` in the Settings Service.
+
+* ``desired`` values may be changed from the cloud side. The device will recognize
+  these, validate them for ``1`` and ``0``, and then reset these endpoints
+  to ``-1``
+
+* ``state`` values will be updated by the device whenever a valid value is
+  received from the ``desired`` endpoints. The cloud may read the ``state``
+  endpoints to determine device status, but only the device should ever write to
+  the ``state`` endpoints.
+
 Remote Procedure Call (RPC) Service
-===================================
+-----------------------------------
 
 The following RPCs can be initiated in the Remote Procedure Call menu of the
 `Golioth Console`_.
@@ -110,53 +170,111 @@ The following RPCs can be initiated in the Remote Procedure Call menu of the
    * ``3``: ``LOG_LEVEL_INF``
    * ``4``: ``LOG_LEVEL_DBG``
 
-LightDB State and LightDB Stream data
-=====================================
+Building the firmware
+*********************
 
-Time-Series Data (LightDB Stream)
----------------------------------
+The firmware build instructions below assume you have already set up a Zephyr
+development environment and have some basic familiarity with building firmware
+using the Zephyr Real Time Operating System (RTOS).
 
-An up-counting timer is periodically sent to the ``sensor/counter`` endpoint of the
-LightDB Stream service to simulate sensor data. If your board includes a
-battery, voltage and level readings will be sent to the ``battery`` endpoint.
+If you're brand new to building firmware with Zephyr, you will need to follow
+the `Zephyr Getting Started Guide`_ to install the Zephyr SDK and related
+dependencies.
 
-Stateful Data (LightDB State)
------------------------------
+We also provide free online `Developer Training`_ for Zephyr at:
 
-The concept of Digital Twin is demonstrated with the LightDB State
-``example_int0`` and ``example_int1`` variables that are members of the ``desired``
-and ``state`` endpoints.
+https://training.golioth.io/docs/zephyr-training
 
-* ``desired`` values may be changed from the cloud side. The device will recognize
-  these, validate them for [0..65535] bounding, and then reset these endpoints
-  to ``-1``
+.. pull-quote::
+   [!IMPORTANT]
 
-* ``state`` values will be updated by the device whenever a valid value is
-  received from the ``desired`` endpoints. The cloud may read the ``state``
-  endpoints to determine device status, but only the device should ever write to
-  the ``state`` endpoints.
+   Do not clone this repo using git. Zephyr's ``west`` meta-tool should be used
+   to set up your local workspace.
 
-Further Information in Header Files
-===================================
+Create a Python virtual environment (recommended)
+=================================================
 
-Please refer to the comments in each header file for a service-by-service
-explanation of this template.
+.. code-block:: shell
 
-Hardware Variations
-*******************
+   cd ~
+   mkdir golioth-reference-design-greenhouse
+   python -m venv golioth-reference-design-greenhouse/.venv
+   source golioth-reference-design-greenhouse/.venv/bin/activate
 
-Nordic nRF9160 DK
-=================
+Install ``west`` meta-tool
+==========================
 
-This reference design may be built for the `Nordic nRF9160 DK`_.
+.. code-block:: shell
 
-Use the following commands to build and program. (Use the same console commands
-from above to provision this board after programming the firmware.)
+   pip install wheel west
+
+Use ``west`` to initialize the workspace and install dependencies
+=================================================================
+
+.. code-block:: console
+
+   cd ~/golioth-reference-design-greenhouse
+   west init -m git@github.com:golioth/reference-design-greenhouse.git .
+   west update
+   west zephyr-export
+   pip install -r deps/zephyr/scripts/requirements.txt
+
+Build the firmware
+==================
+
+Build the Zephyr firmware from the top-level workspace of your project. After a
+successful build you will see a new ``build/`` directory.
+
+Note that this git repository was cloned into the ``app`` folder, so any changes
+you make to the application itself should be committed inside this repository.
+The ``build`` and ``deps`` directories in the root of the workspace are managed
+outside of this git repository by the ``west`` meta-tool.
+
+.. pull-quote::
+   [!IMPORTANT]
+
+   When running the commands below, make sure to replace the placeholder
+   ``<your_zephyr_board_id>`` with the actual Zephyr board from the table above
+   that matches your follow-along hardware.
+
+   In addition, replace ``<your.semantic.version>`` with a `SemVer`_-compliant
+   version string (e.g. ``1.2.3``) that will be used by the DFU service when
+   checking for firmware updates.
 
 .. code-block:: text
 
-   $ (.venv) west build -p -b nrf9160dk_nrf9160_ns app -- -DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION=\"<your.semantic.version>\"
+   $ (.venv) west build -p -b <your_zephyr_board_id> app -- -DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION=\"<your.semantic.version>\"
+
+For example, to build firmware version ``1.2.3`` for Golioth's ``Aludel Mini v1``:
+
+.. code-block:: text
+
+   $ (.venv) west build -p -b aludel_mini_v1_sparkfun9160_ns app -- -DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION=\"1.2.3\"
+
+Flash the firmware
+==================
+
+.. code-block:: text
+
    $ (.venv) west flash
+
+Provision the device
+====================
+
+In order for the device to securely authenticate with the Golioth Cloud, we need
+to provision the device with a pre-shared key (PSK). This key will persist
+across reboots and only needs to be set once after the device firmware has been
+programmed. In addition, flashing new firmware images with ``west flash`` should
+not erase these stored settings unless the entire device flash is erased.
+
+Configure the PSK-ID and PSK using the device UART shell and reboot the device:
+
+.. code-block:: text
+
+   uart:~$ settings set golioth/psk-id <my-psk-id@my-project>
+   uart:~$ settings set golioth/psk <my-psk>
+   uart:~$ kernel reboot cold
+
 
 External Libraries
 ******************
@@ -167,20 +285,19 @@ from ``west.yml`` and remove the includes/function calls from the C code.
 
 * `golioth-zephyr-boards`_ includes the board definitions for the Golioth
   Aludel-Mini
-* `libostentus`_ is a helper library for controlling the Ostentus ePaper
-  faceplate
-* `zephyr-network-info`_ is a helper library for querying, formatting, and returning network
-  connection information via Zephyr log or Golioth RPC
+* `zephyr-network-info`_ is a helper library for querying, formatting, and
+  returning network connection information via Zephyr log or Golioth RPC
 
-Using this template to start a new project
-******************************************
+Pulling in updates from the Reference Design Template
+*****************************************************
 
-Fork this template to create your own Reference Design. After checking out your fork, we recommend
-the following workflow to pull in future changes:
+This reference design was forked from the `Reference Design Template`_ repo. We
+recommend the following workflow to pull in future changes:
 
 * Setup
 
-  * Create a ``template`` remote based on the Reference Design Template repository
+  * Create a ``template`` remote based on the Reference Design Template
+    repository
 
 * Merge in template changes
 
@@ -204,7 +321,13 @@ the following workflow to pull in future changes:
    git commit
 
 .. _Golioth Console: https://console.golioth.io
-.. _Nordic nRF9160 DK: https://www.nordicsemi.com/Products/Development-hardware/nrf9160-dk
 .. _golioth-zephyr-boards: https://github.com/golioth/golioth-zephyr-boards
-.. _libostentus: https://github.com/golioth/libostentus
+.. _MikroE Arduino UNO click shield: https://www.mikroe.com/arduino-uno-click-shield
+.. _MikroE Weather Click: https://www.mikroe.com/weather-click
+.. _Greenhouse Controller Project Page: https://projects.golioth.io/reference-designs/greenhouse-controller
+.. _releases: https://github.com/golioth/
+.. _Reference Design Template: https://github.com/golioth/reference-design-template
+.. _Zephyr Getting Started Guide: https://docs.zephyrproject.org/latest/develop/getting_started/
+.. _Developer Training: https://training.golioth.io
+.. _SemVer: https://semver.org
 .. _zephyr-network-info: https://github.com/golioth/zephyr-network-info

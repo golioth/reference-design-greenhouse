@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 sample:
-  description: Golioth Reference Design Template
-  name: rd_template
+  description: Golioth Greenhouse Reference Design
+  name: greenhouse
 common:
   harness: net
   platform_allow: >

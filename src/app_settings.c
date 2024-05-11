@@ -7,13 +7,16 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(app_settings, LOG_LEVEL_DBG);
 
+#include <golioth/client.h>
+#include <golioth/settings.h>
 #include <zephyr/drivers/sensor.h>
-#include <zephyr/sys/printk.h>
-#include <net/golioth/settings.h>
 #include "app_settings.h"
 #include "main.h"
 
-static struct golioth_client *client;
+#define LOOP_DELAY_S_MAX 43200
+#define LOOP_DELAY_S_MIN 0
+#define LIGHT_THRESH_MAX 1000000
+#define LIGHT_THRESH_MIN 0
 
 static struct sensor_value _temp_thresh_sensorval = {0, 0};
 static int32_t _loop_delay_s = 60;
@@ -40,137 +43,134 @@ void get_temp_settings(struct temp_settings *ts)
 	ts->tem.val2 = _temp_thresh_sensorval.val2;
 }
 
-enum golioth_settings_status on_setting(const char *key, const struct golioth_settings_value *value)
+static enum golioth_settings_status on_loop_delay_setting(int32_t new_value, void *arg)
 {
-
-	LOG_DBG("Received setting: key = %s, type = %d", key, value->type);
-	if (strcmp(key, "LOOP_DELAY_S") == 0) {
-		/* This setting is expected to be numeric, return an error if it's not */
-		if (value->type != GOLIOTH_SETTINGS_VALUE_TYPE_INT64) {
-			LOG_DBG("Received LOOP_DELAY_S is not an integer type.");
-			return GOLIOTH_SETTINGS_VALUE_FORMAT_NOT_VALID;
-		}
-
-		/* Limit to 12 hour max delay: [1, 43200] */
-		if (value->i64 < 1 || value->i64 > 43200) {
-			LOG_DBG("Received LOOP_DELAY_S setting is outside allowed range.");
-			return GOLIOTH_SETTINGS_VALUE_OUTSIDE_RANGE;
-		}
-
-		/* Only update if value has changed */
-		if (_loop_delay_s == (int32_t)value->i64) {
-			LOG_DBG("Received LOOP_DELAY_S already matches local value.");
-		} else {
-			_loop_delay_s = (int32_t)value->i64;
-			LOG_INF("Set loop delay to %d seconds", _loop_delay_s);
-			wake_system_thread();
-		}
+	/* Only update if value has changed */
+	if (_loop_delay_s == new_value) {
+		LOG_DBG("LOOP_DELAY_S already matches local value.");
 		return GOLIOTH_SETTINGS_SUCCESS;
 	}
 
-	if (strcmp(key, "LIGHT_AUTO") == 0) {
-		if (value->type != GOLIOTH_SETTINGS_VALUE_TYPE_BOOL) {
-			return GOLIOTH_SETTINGS_VALUE_FORMAT_NOT_VALID;
-		}
-
-		/* Only update if value has changed */
-		if (_light_auto == (int32_t)value->b) {
-			LOG_DBG("Received LIGHT_AUTO already matches local value.");
-		} else {
-			_light_auto = (bool)value->b;
-
-			LOG_INF("Set _light_auto to: %s", (bool)value->b == true ? "true" : "false");
-			wake_system_thread();
-		}
-		return GOLIOTH_SETTINGS_SUCCESS;
-	}
-
-	if (strcmp(key, "TEMP_AUTO") == 0) {
-		if (value->type != GOLIOTH_SETTINGS_VALUE_TYPE_BOOL) {
-			return GOLIOTH_SETTINGS_VALUE_FORMAT_NOT_VALID;
-		}
-
-		/* Only update if value has changed */
-		if (_temp_auto == (int32_t)value->b) {
-			LOG_DBG("Received TEMP_AUTO already matches local value.");
-		} else {
-			_temp_auto = (bool)value->b;
-
-			LOG_INF("Set _temp_auto to: %s", (bool)value->b == true ? "true" : "false");
-			wake_system_thread();
-		}
-		return GOLIOTH_SETTINGS_SUCCESS;
-	}
-
-	if (strcmp(key, "LIGHT_THRESH") == 0) {
-		if (value->type != GOLIOTH_SETTINGS_VALUE_TYPE_INT64) {
-			return GOLIOTH_SETTINGS_VALUE_FORMAT_NOT_VALID;
-		}
-
-		/* Only update if value has changed */
-		if (_light_thresh == (int64_t)value->i64) {
-			LOG_DBG("Received LIGHT_THRESH already matches local value.");
-		} else {
-			_light_thresh = (int64_t)value->i64;
-
-			LOG_INF("Set _light_thresh to: %lld", _light_thresh);
-			wake_system_thread();
-		}
-		return GOLIOTH_SETTINGS_SUCCESS;
-	}
-
-	if (strcmp(key, "TEMP_THRESH") == 0) {
-		if (value->type != GOLIOTH_SETTINGS_VALUE_TYPE_FLOAT) {
-			return GOLIOTH_SETTINGS_VALUE_FORMAT_NOT_VALID;
-		}
-
-		/* Only update if value has changed */
-		if (_temp_thresh == (float)value->f) {
-			LOG_DBG("Received TEMP_THRESH already matches local value.");
-		} else {
-			_temp_thresh = (float)value->f;
-
-			int32_t temp_conversion = (int32_t)(_temp_thresh * 100);
-			_temp_thresh_sensorval.val1 = temp_conversion / 100;
-			_temp_thresh_sensorval.val2 = (temp_conversion % 100) * 10000;
-
-			LOG_INF("Set _temp_thresh_sensorval to: %d.%d",
-				_temp_thresh_sensorval.val1, _temp_thresh_sensorval.val2);
-			wake_system_thread();
-		}
-		return GOLIOTH_SETTINGS_SUCCESS;
-	}
-
-	/* If the setting is not recognized, we should return an error */
-	return GOLIOTH_SETTINGS_KEY_NOT_RECOGNIZED;
+	_loop_delay_s = new_value;
+	LOG_INF("Set loop delay to %i seconds", new_value);
+	wake_system_thread();
+	return GOLIOTH_SETTINGS_SUCCESS;
 }
 
-int app_settings_init(struct golioth_client *state_client)
+static enum golioth_settings_status on_light_auto_setting(bool new_value, void *arg)
 {
-	client = state_client;
-	int err = app_settings_register(client);
-
-	return err;
-}
-
-int app_settings_observe(void)
-{
-	int err = golioth_settings_observe(client);
-	if (err) {
-		LOG_ERR("Failed to observe settings: %d", err);
+	/* Only update if value has changed */
+	if (_light_auto == new_value) {
+		LOG_DBG("LIGHT_AUTO already matches local value.");
+		return GOLIOTH_SETTINGS_SUCCESS;
 	}
 
-	return err;
+	_light_auto = new_value;
+	LOG_INF("Set LIGHT_AUTO to %s", new_value ? "true" : "false");
+	wake_system_thread();
+	return GOLIOTH_SETTINGS_SUCCESS;
 }
 
-int app_settings_register(struct golioth_client *settings_client)
+static enum golioth_settings_status on_temp_auto_setting(bool new_value, void *arg)
 {
-	int err = golioth_settings_register_callback(settings_client, on_setting);
+	/* Only update if value has changed */
+	if (_temp_auto == new_value) {
+		LOG_DBG("TEMP_AUTO already matches local value.");
+		return GOLIOTH_SETTINGS_SUCCESS;
+	}
+
+	_temp_auto = new_value;
+	LOG_INF("Set TEMP_AUTO to %s", new_value ? "true" : "false");
+	wake_system_thread();
+	return GOLIOTH_SETTINGS_SUCCESS;
+}
+
+static enum golioth_settings_status on_light_thresh_setting(int32_t new_value, void *arg)
+{
+	/* Only update if value has changed */
+	if (_light_thresh == new_value) {
+		LOG_DBG("LIGHT_THRESH already matches local value.");
+		return GOLIOTH_SETTINGS_SUCCESS;
+	}
+
+	_light_thresh = new_value;
+	LOG_INF("Set light threshold to %i seconds", new_value);
+	wake_system_thread();
+	return GOLIOTH_SETTINGS_SUCCESS;
+}
+
+static enum golioth_settings_status on_temp_thresh_setting(float new_value, void *arg)
+{
+	/* Only update if value has changed */
+	if (_temp_thresh == new_value) {
+		LOG_DBG("TEMP_THRESH already matches local value.");
+		return GOLIOTH_SETTINGS_SUCCESS;
+	}
+
+	_temp_thresh = new_value;
+
+	int32_t temp_conversion = (int32_t)(_temp_thresh * 100);
+	_temp_thresh_sensorval.val1 = temp_conversion / 100;
+	_temp_thresh_sensorval.val2 = (temp_conversion % 100) * 10000;
+
+	LOG_INF("Set _temp_thresh_sensorval to: %d.%d",
+		_temp_thresh_sensorval.val1, _temp_thresh_sensorval.val2);
+	wake_system_thread();
+	return GOLIOTH_SETTINGS_SUCCESS;
+}
+
+void app_settings_register(struct golioth_client *client)
+{
+	int err;
+	struct golioth_settings *settings = golioth_settings_init(client);
+
+	err = golioth_settings_register_int_with_range(settings,
+							   "LOOP_DELAY_S",
+							   LOOP_DELAY_S_MIN,
+							   LOOP_DELAY_S_MAX,
+							   on_loop_delay_setting,
+							   NULL);
 
 	if (err) {
-		LOG_ERR("Failed to register settings callback: %d", err);
+		LOG_ERR("Failed to register loop settings callback: %d", err);
 	}
 
-	return err;
+	err = golioth_settings_register_bool(settings,
+						 "LIGHT_AUTO",
+						 on_light_auto_setting,
+						 NULL);
+
+	if (err) {
+		LOG_ERR("Failed to register light auto settings callback: %d", err);
+	}
+
+	err = golioth_settings_register_bool(settings,
+						 "TEMP_AUTO",
+						 on_temp_auto_setting,
+						 NULL);
+
+	if (err) {
+		LOG_ERR("Failed to register vent auto settings callback: %d", err);
+	}
+
+	err = golioth_settings_register_int_with_range(settings,
+						       "LIGHT_THRESH",
+						       LIGHT_THRESH_MIN,
+						       LIGHT_THRESH_MAX,
+						       on_light_thresh_setting,
+						       NULL);
+
+	if (err) {
+		LOG_ERR("Failed to register light threshold settings callback: %d", err);
+	}
+
+	err = golioth_settings_register_float(settings,
+					      "TEMP_THRESH",
+					      on_temp_thresh_setting,
+					      NULL);
+
+	if (err) {
+		LOG_ERR("Failed to register temp threshold settings callback: %d", err);
+	}
 }
 

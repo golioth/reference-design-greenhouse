@@ -230,6 +230,10 @@ you make to the application itself should be committed inside this repository.
 The ``build`` and ``deps`` directories in the root of the workspace are managed
 outside of this git repository by the ``west`` meta-tool.
 
+Prior to building, update ``CONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION`` in the ``prj.conf`` file to
+reflect the firmware version number you want to assign to this build. Then run the following
+commands to build and program the firmware onto the device.
+
 .. pull-quote::
    [!IMPORTANT]
 
@@ -237,19 +241,15 @@ outside of this git repository by the ``west`` meta-tool.
    ``<your_zephyr_board_id>`` with the actual Zephyr board from the table above
    that matches your follow-along hardware.
 
-   In addition, replace ``<your.semantic.version>`` with a `SemVer`_-compliant
-   version string (e.g. ``1.2.3``) that will be used by the DFU service when
-   checking for firmware updates.
-
 .. code-block:: text
 
-   $ (.venv) west build -p -b <your_zephyr_board_id> app -- -DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION=\"<your.semantic.version>\"
+   $ (.venv) west build -p -b <your_zephyr_board_id> app
 
 For example, to build firmware version ``1.2.3`` for Golioth's ``Aludel Mini v1``:
 
 .. code-block:: text
 
-   $ (.venv) west build -p -b aludel_mini_v1_sparkfun9160_ns app -- -DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION=\"1.2.3\"
+   $ (.venv) west build -p -b aludel_mini_v1_sparkfun9160_ns app
 
 Flash the firmware
 ==================

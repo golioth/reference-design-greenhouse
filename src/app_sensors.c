@@ -5,16 +5,21 @@
  */
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(app_work, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(app_sensors, LOG_LEVEL_DBG);
 
-#include <net/golioth/settings.h>
-#include <net/golioth/system_client.h>
+#include <golioth/client.h>
+#include <golioth/stream.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/sensor.h>
+#include <zephyr/kernel.h>
+
+#include "app_sensors.h"
 #include "app_settings.h"
 #include "app_state.h"
-#include "app_work.h"
 
+#ifdef CONFIG_LIB_OSTENTUS
+#include <libostentus.h>
+#endif
 #ifdef CONFIG_ALUDEL_BATTERY_MONITOR
 #include "battery_monitor/battery.h"
 #endif
@@ -45,6 +50,12 @@ static void set_light_on_off(uint8_t state)
 
 	_light_cur_state = state;
 	gpio_pin_set_dt(&relay_light, _light_cur_state);
+
+	IF_ENABLED(CONFIG_LIB_OSTENTUS, (
+		char *relay_state = state ? RELAY_STR_ON : RELAY_STR_OFF;
+		slide_set(SLIDE_GROWLIGHT, relay_state, strlen(relay_state));
+	));
+
 	app_state_update_actual();
 }
 
@@ -57,18 +68,27 @@ static void set_vent_on_off(uint8_t state)
 
 	_vent_cur_state = state;
 	gpio_pin_set_dt(&relay_vent, _vent_cur_state);
+
+	IF_ENABLED(CONFIG_LIB_OSTENTUS, (
+		char *relay_state = state ? RELAY_STR_ON : RELAY_STR_OFF;
+		slide_set(SLIDE_VENT, relay_state, strlen(relay_state));
+	));
+
 	app_state_update_actual();
 }
 
 
-static int async_error_handler(struct golioth_req_rsp *rsp)
-{
-	if (rsp->err) {
-		LOG_ERR("Async task failed: %d", rsp->err);
-		return rsp->err;
-	}
+/* Callback for LightDB Stream */
 
-	return 0;
+static void async_error_handler(struct golioth_client *client,
+				const struct golioth_response *response,
+				const char *path,
+				void *arg)
+{
+	if (response->status != GOLIOTH_OK) {
+		LOG_ERR("Async task failed: %d", response->status);
+		return;
+	}
 }
 
 static bool temp_threshold_triggered(struct sensor_value *tem_sensor,
@@ -85,7 +105,7 @@ static bool temp_threshold_triggered(struct sensor_value *tem_sensor,
 
 /* This will be called by the main() loop */
 /* Do all of your work here! */
-void app_work_sensor_read(void)
+void app_sensors_read_and_stream(void)
 {
 
 	struct sensor_value intensity, red, green, blue, tem, pre, hum;
@@ -93,7 +113,11 @@ void app_work_sensor_read(void)
 	char json_buf[256];
 
 	IF_ENABLED(CONFIG_ALUDEL_BATTERY_MONITOR, (
-		read_and_report_battery();
+		read_and_report_battery(client);
+		IF_ENABLED(CONFIG_LIB_OSTENTUS, (
+			slide_set(BATTERY_V, get_batt_v_str(), strlen(get_batt_v_str()));
+			slide_set(BATTERY_LVL, get_batt_lvl_str(), strlen(get_batt_lvl_str()));
+		));
 	));
 
 	/* Read all sensors */
@@ -118,17 +142,34 @@ void app_work_sensor_read(void)
 	sensor_channel_get(weather_sensor, SENSOR_CHAN_PRESS, &pre);
 	sensor_channel_get(weather_sensor, SENSOR_CHAN_HUMIDITY, &hum);
 	LOG_INF("Weather: tem=%d.%d, pre=%d.%d, hum=%d.%d",
-		tem.val1, tem.val2, pre.val1, pre.val2, hum.val1, hum.val2);
+		tem.val1, abs(tem.val2), pre.val1, pre.val2, hum.val1, hum.val2);
 
 	/* Send sensor data to Golioth */
 	snprintk(json_buf, sizeof(json_buf), SENSOR_JSON_FMT, intensity.val1,
-		 red.val1, green.val1, blue.val1, tem.val1, tem.val2,
+		 red.val1, green.val1, blue.val1, tem.val1, abs(tem.val2),
 		 pre.val1, pre.val2, hum.val1, hum.val2);
 
-	err = golioth_stream_push_cb(client, "sensor", GOLIOTH_CONTENT_FORMAT_APP_JSON,
-				     json_buf, strlen(json_buf), async_error_handler, NULL);
+	err = golioth_stream_set_async(client,
+				       "sensor",
+				       GOLIOTH_CONTENT_TYPE_JSON,
+				       json_buf,
+				       strlen(json_buf),
+				       async_error_handler,
+				       NULL);
+	if (err) {
+		LOG_ERR("Failed to send sensor data to Golioth: %d", err);
+	}
 
-	if (err) LOG_ERR("Failed to send sensor data to Golioth: %d", err);
+	IF_ENABLED(CONFIG_LIB_OSTENTUS, (
+		/* Update slide values on Ostentus
+		 *  -values should be sent as strings
+		 *  -use the enum from app_sensors.h for slide key values
+		 */
+		snprintk(json_buf, sizeof(json_buf), "%d.%d °C", tem.val1, abs(tem.val2) / 10000);
+		slide_set(SLIDE_TEMP, json_buf, strlen(json_buf));
+		snprintk(json_buf, sizeof(json_buf), "%d", intensity.val1);
+		slide_set(SLIDE_INTENSITY, json_buf, strlen(json_buf));
+	));
 
 	struct light_settings ls;
 	get_light_settings(&ls);
@@ -153,9 +194,13 @@ void app_work_sensor_read(void)
 	}
 }
 
-int manual_light_on_off(uint8_t state)
+void app_sensors_set_client(struct golioth_client *sensors_client)
 {
-	struct light_settings ls;
+	client = sensors_client;
+}
+
+int manual_light_on_off(uint8_t state)
+{ struct light_settings ls;
 	get_light_settings(&ls);
 
 	if (ls.ctrl_auto) {
@@ -189,11 +234,9 @@ void get_relay_state(struct relay_state *r_state)
 	return;
 }
 
-void app_work_init(struct golioth_client* work_client)
+void app_sensors_init(void)
 {
 	int err;
-
-	client = work_client;
 
 	/* Initialize relays */
 	err = gpio_pin_configure_dt(&relay_light, GPIO_OUTPUT_INACTIVE);
@@ -205,5 +248,14 @@ void app_work_init(struct golioth_client* work_client)
 	if (err < 0) {
 		LOG_ERR("Unable to configure relay_vent");
 	}
-}
 
+	IF_ENABLED(CONFIG_LIB_OSTENTUS, (
+		char *relay_state;
+		/* these will be ignored if slides haven't already been added */
+		relay_state = _light_cur_state ? RELAY_STR_ON : RELAY_STR_OFF;
+		slide_set(SLIDE_GROWLIGHT, relay_state, strlen(relay_state));
+
+		relay_state = _vent_cur_state ? RELAY_STR_ON : RELAY_STR_OFF;
+		slide_set(SLIDE_VENT, relay_state, strlen(relay_state));
+	));
+}

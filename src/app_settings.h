@@ -19,7 +19,7 @@
 #define __APP_SETTINGS_H__
 
 #include <stdint.h>
-#include <net/golioth/system_client.h>
+#include <golioth/client.h>
 #include <zephyr/drivers/sensor.h>
 
 struct light_settings {
@@ -33,9 +33,7 @@ struct temp_settings {
 };
 
 int32_t get_loop_delay_s(void);
-int app_settings_init(struct golioth_client *state_client);
-int app_settings_observe(void);
-int app_settings_register(struct golioth_client *settings_client);
+void app_settings_register(struct golioth_client *client);
 
 void get_light_settings(struct light_settings *ls);
 void get_temp_settings(struct temp_settings *ts);

@@ -27,6 +27,18 @@ This firmware can be built for a variety of supported hardware platforms.
    correct Zephyr board identifier that corresponds to your follow-along
    hardware platform.
 
+.. list-table:: **Follow-Along Hardware**
+   :header-rows: 1
+
+   * - Hardware
+     - Zephyr Board
+     - Follow-Along Guide
+
+   * - .. image:: images/golioth-greenhouse-controller-fah-nrf9160dk.jpg
+          :width: 240
+     - ``nrf9160dk_nrf9160_ns``
+     - `nRF9160 DK Follow-Along Guide`_
+
 .. list-table:: **Custom Golioth Hardware**
    :header-rows: 1
 
@@ -211,7 +223,7 @@ Install ``west`` meta-tool
 Use ``west`` to initialize the workspace and install dependencies
 =================================================================
 
-.. code-block:: console
+.. code-block:: shell
 
    cd ~/golioth-reference-design-greenhouse
    west init -m git@github.com:golioth/reference-design-greenhouse.git .
@@ -245,11 +257,12 @@ commands to build and program the firmware onto the device.
 
    $ (.venv) west build -p -b <your_zephyr_board_id> app
 
-For example, to build firmware version ``1.2.3`` for Golioth's ``Aludel Mini v1``:
+For example, to build firmware for the `Nordic nRF9160 DK`_-based follow-along
+hardware:
 
 .. code-block:: text
 
-   $ (.venv) west build -p -b aludel_mini_v1_sparkfun9160_ns app
+   $ (.venv) west build -p -b nrf9160dk_nrf9160_ns app
 
 Flash the firmware
 ==================
@@ -274,7 +287,6 @@ Configure the PSK-ID and PSK using the device UART shell and reboot the device:
    uart:~$ settings set golioth/psk-id <my-psk-id@my-project>
    uart:~$ settings set golioth/psk <my-psk>
    uart:~$ kernel reboot cold
-
 
 External Libraries
 ******************
@@ -321,10 +333,12 @@ recommend the following workflow to pull in future changes:
    git commit
 
 .. _Golioth Console: https://console.golioth.io
+.. _Nordic nRF9160 DK: https://www.nordicsemi.com/Products/Development-hardware/nrf9160-dk
 .. _golioth-zephyr-boards: https://github.com/golioth/golioth-zephyr-boards
 .. _MikroE Arduino UNO click shield: https://www.mikroe.com/arduino-uno-click-shield
 .. _MikroE Weather Click: https://www.mikroe.com/weather-click
 .. _Greenhouse Controller Project Page: https://projects.golioth.io/reference-designs/greenhouse-controller
+.. _nRF9160 DK Follow-Along Guide: https://projects.golioth.io/reference-designs/greenhouse-controller/guide-nrf9160-dk
 .. _releases: https://github.com/golioth/
 .. _Reference Design Template: https://github.com/golioth/reference-design-template
 .. _Zephyr Getting Started Guide: https://docs.zephyrproject.org/latest/develop/getting_started/

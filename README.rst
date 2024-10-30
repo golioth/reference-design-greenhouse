@@ -220,97 +220,56 @@ https://training.golioth.io/docs/zephyr-training
    Do not clone this repo using git. Zephyr's ``west`` meta-tool should be used
    to set up your local workspace.
 
-Create a Python virtual environment (recommended)
-=================================================
+Install the Python virtual environment (recommended)
+====================================================
 
 .. code-block:: shell
 
    cd ~
    mkdir golioth-reference-design-greenhouse
-   python -m venv golioth-reference-design-greenhouse/.venv
+   python -m venv golioth-reference-greenhouse/.venv
    source golioth-reference-design-greenhouse/.venv/bin/activate
-
-Install ``west`` meta-tool
-==========================
-
-.. code-block:: shell
-
    pip install wheel west
 
-Use ``west`` to initialize the workspace and install dependencies
-=================================================================
+Use ``west`` to initialize and install
+======================================
 
 .. code-block:: shell
 
    cd ~/golioth-reference-design-greenhouse
-   west init -m git@github.com:golioth/reference-design-greenhouse.git .
+   west init -m https://github.com/golioth/reference-design-greenhouse.git .
    west update
    west zephyr-export
    pip install -r deps/zephyr/scripts/requirements.txt
 
-Build the firmware
-==================
+Building the application
+************************
 
-Build the Zephyr firmware from the top-level workspace of your project. After a
-successful build you will see a new ``build/`` directory.
+Build the Zephyr sample application for the `Nordic nRF9160 DK`_
+(``nrf9160dk_nrf9160_ns``) from the top level of your project. After a
+successful build you will see a new ``build`` directory. Note that any changes
+(and git commits) to the project itself will be inside the ``app`` folder. The
+``build`` and ``deps`` directories being one level higher prevents the repo from
+cataloging all of the changes to the dependencies and the build (so no
+``.gitignore`` is needed).
 
-Note that this git repository was cloned into the ``app`` folder, so any changes
-you make to the application itself should be committed inside this repository.
-The ``build`` and ``deps`` directories in the root of the workspace are managed
-outside of this git repository by the ``west`` meta-tool.
+Prior to building, update ``VERSION`` file to reflect the firmware version number you want to assign
+to this build. Then run the following commands to build and program the firmware onto the device.
 
-Golioth Aludel Mini
-===================
-
-This reference design may be built for the Golioth Aludel Mini board.
 
 .. pull-quote::
    [!IMPORTANT]
 
-   When running the commands below, make sure to replace the placeholder
-   ``<your_zephyr_board_id>`` with the actual Zephyr board from the table above
-   that matches your follow-along hardware.
+   You must perform a pristine build (use ``-p`` or remove the ``build`` directory)
+   after changing the firmware version number in the ``VERSION`` file for the change to take effect.
 
 .. code-block:: text
 
-   $ (.venv) west build -p -b <your_zephyr_board_id> app
-
-For example, to build firmware for the `Nordic nRF9160 DK`_-based follow-along
-hardware:
-
-.. code-block:: text
-
-   $ (.venv) west build -p -b aludel_mini/nrf9160/ns --sysbuild app
+   $ (.venv) west build -p -b nrf9160dk/nrf9160/ns --sysbuild app
    $ (.venv) west flash
 
-Golioth Aludel Elixir
-=====================
-
-This reference design may be built for the Golioth Aludel Elixir board. By default this will build
-for the latest hardware revision of this board.
-
-.. code-block:: text
-
-   $ (.venv) west build -p -b aludel_elixir/nrf9160/ns --sysbuild app
-   $ (.venv) west flash
-
-To build for a specific board revision (e.g. Rev A) add the revision suffix ``@<rev>``.
-
-.. code-block:: text
-
-   $ (.venv) west build -p -b aludel_elixir@A/nrf9160/ns --sysbuild app
-   $ (.venv) west flash
-
-Provision the device
-====================
-
-In order for the device to securely authenticate with the Golioth Cloud, we need
-to provision the device with a pre-shared key (PSK). This key will persist
-across reboots and only needs to be set once after the device firmware has been
-programmed. In addition, flashing new firmware images with ``west flash`` should
-not erase these stored settings unless the entire device flash is erased.
-
-Configure the PSK-ID and PSK using the device UART shell and reboot the device:
+Configure PSK-ID and PSK using the device shell based on your Golioth
+credentials and reboot:
 
 .. code-block:: text
 

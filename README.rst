@@ -36,7 +36,7 @@ This firmware can be built for a variety of supported hardware platforms.
 
    * - .. image:: images/golioth-greenhouse-controller-fah-nrf9160dk.jpg
           :width: 240
-     - ``nrf9160dk_nrf9160_ns``
+     - ``nrf9160dk/nrf9160/ns``
      - `nRF9160 DK Follow-Along Guide`_
 
 .. list-table:: **Custom Golioth Hardware**
@@ -47,10 +47,8 @@ This firmware can be built for a variety of supported hardware platforms.
      - Project Page
    * - .. image:: images/Greenhouse_controller.png
           :width: 240
-     - ``aludel_mini_v1_sparkfun9160_ns``
+     - ``aludel_mini/nrf9160/ns``
      - `Greenhouse Controller Project Page`_
-
-############################
 
 Firmware Overview
 *****************
@@ -73,8 +71,27 @@ The sensor values are uploaded to the LightDB Stream database in the Golioth
 Cloud. The sensor sampling frequency and other sensor parameters are remotely
 configurable via the Golioth Settings service.
 
-Supported Golioth Zephyr SDK Features
-=====================================
+Add Pipeline to Golioth
+***********************
+
+Golioth uses `Pipelines`_ to route stream data. This gives you flexibility to change your data
+routing without requiring updated device firmware.
+
+Whenever sending stream data, you must enable a pipeline in your Golioth project to configure how
+that data is handled. Add the contents of ``pipelines/cbor-to-lightdb.yml`` as a new pipeline as
+follows (note that this is the default pipeline for new projects and may already be present):
+
+   1. Navigate to your project on the Golioth web console.
+   2. Select ``Pipelines`` from the left sidebar and click the ``Create`` button.
+   3. Give your new pipeline a name and paste the pipeline configuration into the editor.
+   4. Click the toggle in the bottom right to enable the pipeline and then click ``Create``.
+
+All data streamed to Golioth in CBOR format will now be routed to LightDB Stream and may be viewed
+using the web console. You may change this behavior at any time without updating firmware simply by
+editing this pipeline entry.
+
+Golioth Features
+****************
 
 This firmware implements the following features from the Golioth Zephyr SDK:
 
@@ -242,9 +259,10 @@ you make to the application itself should be committed inside this repository.
 The ``build`` and ``deps`` directories in the root of the workspace are managed
 outside of this git repository by the ``west`` meta-tool.
 
-Prior to building, update ``CONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION`` in the ``prj.conf`` file to
-reflect the firmware version number you want to assign to this build. Then run the following
-commands to build and program the firmware onto the device.
+Golioth Aludel Mini
+===================
+
+This reference design may be built for the Golioth Aludel Mini board.
 
 .. pull-quote::
    [!IMPORTANT]
@@ -262,13 +280,25 @@ hardware:
 
 .. code-block:: text
 
-   $ (.venv) west build -p -b nrf9160dk_nrf9160_ns app
+   $ (.venv) west build -p -b aludel_mini/nrf9160/ns --sysbuild app
+   $ (.venv) west flash
 
-Flash the firmware
-==================
+Golioth Aludel Elixir
+=====================
+
+This reference design may be built for the Golioth Aludel Elixir board. By default this will build
+for the latest hardware revision of this board.
 
 .. code-block:: text
 
+   $ (.venv) west build -p -b aludel_elixir/nrf9160/ns --sysbuild app
+   $ (.venv) west flash
+
+To build for a specific board revision (e.g. Rev A) add the revision suffix ``@<rev>``.
+
+.. code-block:: text
+
+   $ (.venv) west build -p -b aludel_elixir@A/nrf9160/ns --sysbuild app
    $ (.venv) west flash
 
 Provision the device
@@ -288,6 +318,19 @@ Configure the PSK-ID and PSK using the device UART shell and reboot the device:
    uart:~$ settings set golioth/psk <my-psk>
    uart:~$ kernel reboot cold
 
+OTA Firmware Update
+*******************
+
+This application includes the ability to perform Over-the-Air (OTA) firmware updates:
+
+1. Update the version number in the `VERSION` file and perform a pristine (important) build to
+   incorporate the version change.
+2. Upload the `build/app/zephyr/zephyr.signed.bin` file as an artifact for your Golioth project
+   using `main` as the package name.
+3. Create and roll out a release based on this artifact.
+
+Visit `the Golioth Docs OTA Firmware Upgrade page`_ for more info.
+
 External Libraries
 ******************
 
@@ -300,40 +343,10 @@ from ``west.yml`` and remove the includes/function calls from the C code.
 * `zephyr-network-info`_ is a helper library for querying, formatting, and
   returning network connection information via Zephyr log or Golioth RPC
 
-Pulling in updates from the Reference Design Template
-*****************************************************
-
-This reference design was forked from the `Reference Design Template`_ repo. We
-recommend the following workflow to pull in future changes:
-
-* Setup
-
-  * Create a ``template`` remote based on the Reference Design Template
-    repository
-
-* Merge in template changes
-
-  * Fetch template changes and tags
-  * Merge template release tag into your ``main`` (or other branch)
-  * Resolve merge conflicts (if any) and commit to your repository
-
-.. code-block:: shell
-
-   # Setup
-   git remote add template https://github.com/golioth/reference-design-template.git
-   git fetch template --tags
-
-   # Merge in template changes
-   git fetch template --tags
-   git checkout your_local_branch
-   git merge template_v1.0.0
-
-   # Resolve merge conflicts if necessary
-   git add resolved_files
-   git commit
-
 .. _Golioth Console: https://console.golioth.io
 .. _Nordic nRF9160 DK: https://www.nordicsemi.com/Products/Development-hardware/nrf9160-dk
+.. _Pipelines: https://docs.golioth.io/data-routing
+.. _the Golioth Docs OTA Firmware Upgrade page: https://docs.golioth.io/firmware/golioth-firmware-sdk/firmware-upgrade/firmware-upgrade
 .. _golioth-zephyr-boards: https://github.com/golioth/golioth-zephyr-boards
 .. _MikroE Arduino UNO click shield: https://www.mikroe.com/arduino-uno-click-shield
 .. _MikroE Weather Click: https://www.mikroe.com/weather-click

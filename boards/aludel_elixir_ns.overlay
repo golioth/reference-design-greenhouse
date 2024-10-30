@@ -1,0 +1,40 @@
+/ {
+	relay_pins {
+		compatible = "gpio-relay";
+		relay_0: relay_0 {
+			gpios = <&gpio0 17 (GPIO_ACTIVE_HIGH)>;
+		};
+		relay_1: relay_1 {
+			gpios = <&gpio0 0 (GPIO_ACTIVE_HIGH)>;
+		};
+	};
+};
+
+&mikrobus_i2c {
+	/* Needed for I2C writes used by libostentus */
+	zephyr,concat-buf-size = <48>;
+
+	ostentus@12 {
+		status = "okay";
+		compatible = "golioth,ostentus";
+		reg = <0x12>;
+	};
+
+	bme280: bme280@76 {
+		status = "okay";
+		compatible = "bosch,bme280";
+		reg = <0x76>;
+	};
+
+	apds9960: apds9960@39 {
+		status = "okay";
+		compatible = "avago,apds9960";
+		reg = <0x39>;
+		int-gpios = <&gpio0 9 (GPIO_ACTIVE_LOW)>; /* CLICK_RST1 */
+	};
+};
+
+&pwm0 {
+	status = "disabled";
+};
+

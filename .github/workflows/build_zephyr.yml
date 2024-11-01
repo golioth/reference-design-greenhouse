@@ -71,9 +71,9 @@ jobs:
           mkdir -p artifacts
           BOARD_NICENAME=${{ inputs.BOARD }}
           BOARD_NICENAME=${BOARD_NICENAME//\//_}
-          mv merged.hex      ./artifacts/greenhouse_${{ inputs.TAG }}_${BOARD_NICENAME}_full.hex
-          mv app_update.bin  ./artifacts/greenhouse_${{ inputs.TAG }}_${BOARD_NICENAME}_update.bin
-          mv zephyr.elf      ./artifacts/greenhouse_${{ inputs.TAG }}_${BOARD_NICENAME}.elf
+          mv merged.hex                   ./artifacts/greenhouse_${{ inputs.TAG }}_${BOARD_NICENAME}_full.hex
+          mv app/zephyr/zephyr.signed.bin ./artifacts/greenhouse_${{ inputs.TAG }}_${BOARD_NICENAME}_update.bin
+          mv app/zephyr/zephyr.elf        ./artifacts/greenhouse_${{ inputs.TAG }}_${BOARD_NICENAME}.elf
 
       # Run IDs are unique per repo but are reused on re-runs
       - name: Save artifact

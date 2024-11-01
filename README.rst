@@ -237,7 +237,7 @@ Use ``west`` to initialize and install
 .. code-block:: shell
 
    cd ~/golioth-reference-design-greenhouse
-   west init -m https://github.com/golioth/reference-design-greenhouse.git .
+   west init -m git@github.com:golioth/reference-design-greenhouse.git .
    west update
    west zephyr-export
    pip install -r deps/zephyr/scripts/requirements.txt

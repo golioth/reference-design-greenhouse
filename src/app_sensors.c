@@ -9,6 +9,7 @@ LOG_MODULE_REGISTER(app_sensors, LOG_LEVEL_DBG);
 
 #include <golioth/client.h>
 #include <golioth/stream.h>
+#include <zcbor_encode.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
@@ -19,6 +20,7 @@ LOG_MODULE_REGISTER(app_sensors, LOG_LEVEL_DBG);
 
 #ifdef CONFIG_LIB_OSTENTUS
 #include <libostentus.h>
+static const struct device *o_dev = DEVICE_DT_GET_ANY(golioth_ostentus);
 #endif
 #ifdef CONFIG_ALUDEL_BATTERY_MONITOR
 #include "battery_monitor/battery.h"
@@ -53,7 +55,7 @@ static void set_light_on_off(uint8_t state)
 
 	IF_ENABLED(CONFIG_LIB_OSTENTUS, (
 		char *relay_state = state ? RELAY_STR_ON : RELAY_STR_OFF;
-		slide_set(SLIDE_GROWLIGHT, relay_state, strlen(relay_state));
+		ostentus_slide_set(o_dev, SLIDE_GROWLIGHT, relay_state, strlen(relay_state));
 	));
 
 	app_state_update_actual();
@@ -71,7 +73,7 @@ static void set_vent_on_off(uint8_t state)
 
 	IF_ENABLED(CONFIG_LIB_OSTENTUS, (
 		char *relay_state = state ? RELAY_STR_ON : RELAY_STR_OFF;
-		slide_set(SLIDE_VENT, relay_state, strlen(relay_state));
+		ostentus_slide_set(o_dev, SLIDE_VENT, relay_state, strlen(relay_state));
 	));
 
 	app_state_update_actual();
@@ -79,7 +81,6 @@ static void set_vent_on_off(uint8_t state)
 
 
 /* Callback for LightDB Stream */
-
 static void async_error_handler(struct golioth_client *client,
 				const struct golioth_response *response,
 				const char *path,
@@ -112,11 +113,18 @@ void app_sensors_read_and_stream(void)
 	int err = 0;
 	char json_buf[256];
 
+	/* Golioth custom hardware for demos */
 	IF_ENABLED(CONFIG_ALUDEL_BATTERY_MONITOR, (
 		read_and_report_battery(client);
 		IF_ENABLED(CONFIG_LIB_OSTENTUS, (
-			slide_set(BATTERY_V, get_batt_v_str(), strlen(get_batt_v_str()));
-			slide_set(BATTERY_LVL, get_batt_lvl_str(), strlen(get_batt_lvl_str()));
+			ostentus_slide_set(o_dev,
+					   BATTERY_V,
+					   get_batt_v_str(),
+					   strlen(get_batt_v_str()));
+			ostentus_slide_set(o_dev,
+					   BATTERY_LVL,
+					   get_batt_lvl_str(),
+					   strlen(get_batt_lvl_str()));
 		));
 	));
 
@@ -160,15 +168,16 @@ void app_sensors_read_and_stream(void)
 		LOG_ERR("Failed to send sensor data to Golioth: %d", err);
 	}
 
+	/* Golioth custom hardware for demos */
 	IF_ENABLED(CONFIG_LIB_OSTENTUS, (
 		/* Update slide values on Ostentus
 		 *  -values should be sent as strings
 		 *  -use the enum from app_sensors.h for slide key values
 		 */
 		snprintk(json_buf, sizeof(json_buf), "%d.%d °C", tem.val1, abs(tem.val2) / 10000);
-		slide_set(SLIDE_TEMP, json_buf, strlen(json_buf));
+		ostentus_slide_set(o_dev, SLIDE_TEMP, json_buf, strlen(json_buf));
 		snprintk(json_buf, sizeof(json_buf), "%d", intensity.val1);
-		slide_set(SLIDE_INTENSITY, json_buf, strlen(json_buf));
+		ostentus_slide_set(o_dev, SLIDE_INTENSITY, json_buf, strlen(json_buf));
 	));
 
 	struct light_settings ls;
@@ -253,9 +262,9 @@ void app_sensors_init(void)
 		char *relay_state;
 		/* these will be ignored if slides haven't already been added */
 		relay_state = _light_cur_state ? RELAY_STR_ON : RELAY_STR_OFF;
-		slide_set(SLIDE_GROWLIGHT, relay_state, strlen(relay_state));
+		ostentus_slide_set(o_dev, SLIDE_GROWLIGHT, relay_state, strlen(relay_state));
 
 		relay_state = _vent_cur_state ? RELAY_STR_ON : RELAY_STR_OFF;
-		slide_set(SLIDE_VENT, relay_state, strlen(relay_state));
+		ostentus_slide_set(o_dev, SLIDE_VENT, relay_state, strlen(relay_state));
 	));
 }

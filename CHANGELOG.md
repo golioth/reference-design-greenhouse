@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2024-05-16
 
 ### Added
+
 - Initial release is based on:
   [`golioth/reference-design-template@template_v2.1.0`](https://github.com/golioth/reference-design-template/tree/template_v2.1.0).
 - Added a CHANGELOG.md to track changes moving forward.

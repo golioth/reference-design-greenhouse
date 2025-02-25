@@ -237,7 +237,7 @@ present):
 4.  Click the toggle in the bottom right to enable the pipeline and
     then click `Create`.
 
-All data streamed to Golioth in CBOR format will now be routed to
+All data streamed to Golioth in JSON format will now be routed to
 LightDB Stream and may be viewed using the web console. You may change
 this behavior at any time without updating firmware simply by editing
 this pipeline entry.

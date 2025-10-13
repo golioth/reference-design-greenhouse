@@ -14,7 +14,7 @@ LOG_MODULE_REGISTER(app_settings, LOG_LEVEL_DBG);
 #include "main.h"
 
 #define LOOP_DELAY_S_MAX 43200
-#define LOOP_DELAY_S_MIN 0
+#define LOOP_DELAY_S_MIN 1
 #define LIGHT_THRESH_MAX 1000000
 #define LIGHT_THRESH_MIN 0
 

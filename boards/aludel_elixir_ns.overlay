@@ -30,7 +30,7 @@
 		status = "okay";
 		compatible = "avago,apds9960";
 		reg = <0x39>;
-		int-gpios = <&gpio0 9 (GPIO_ACTIVE_LOW)>; /* CLICK_RST1 */
+		int-gpios = <&gpio0 9 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* CLICK_RST1 */
 	};
 };
 

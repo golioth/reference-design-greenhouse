@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 manifest:
-  version: 0.8
+  version: 1.0
 
   projects:
     - name: golioth
       path: modules/lib/golioth-firmware-sdk
-      revision: v0.15.0
+      revision: v0.21.0
       url: https://github.com/golioth/golioth-firmware-sdk.git
       west-commands: scripts/west-commands.yml
       submodules: true
@@ -17,7 +17,7 @@ manifest:
         name-allowlist:
           - nrf
           - zephyr
-          - cmsis
+          - cmsis_6
           - hal_nordic
           - mbedtls
           - mbedtls-nrf
@@ -34,7 +34,7 @@ manifest:
 
     - name: golioth-zephyr-boards
       path: deps/modules/lib/golioth-boards
-      revision: v2.0.1
+      revision: v2.1.1
       url: https://github.com/golioth/golioth-zephyr-boards
 
     - name: libostentus
@@ -46,6 +46,11 @@ manifest:
       path: deps/modules/lib/network-info
       revision: v1.2.0
       url: https://github.com/golioth/zephyr-network-info
+
+    - name: golioth-battery-monitor
+      path: deps/modules/lib/battery-monitor
+      revision: v1.1.0
+      url: https://github.com/golioth/battery-monitor
 
   self:
     path: app
